@@ -28,11 +28,11 @@ export class PhotosMigrationEngine {
 
     while (attempt <= maxRetries) {
       try {
-        ItemRepository.updateStatus(item.id, 'PROCESSING');
+        await ItemRepository.updateStatus(item.id, 'PROCESSING');
         EventBroadcaster.broadcast('ITEM_PROGRESS', { jobId: item.job_id, itemId: item.id, status: 'PROCESSING' });
 
         const mode = (process.env.PHOTOS_TRANSFER_MODE === 'buffer') ? 'BUFFER' : 'PIPE';
-        AuditRepository.log({
+        await AuditRepository.log({
           jobId: item.job_id,
           itemId: item.id,
           level: 'INFO',
@@ -61,10 +61,10 @@ export class PhotosMigrationEngine {
         if (firstResult.status && firstResult.status.message === 'Success') {
           const destMediaId = firstResult.mediaItem ? firstResult.mediaItem.id : 'created';
           // Immediately transactional update to VERIFIED
-          ItemRepository.updateStatus(item.id, 'VERIFIED', { destItemId: destMediaId });
-          JobRepository.incrementCompleted(item.job_id);
+          await ItemRepository.updateStatus(item.id, 'VERIFIED', { destItemId: destMediaId });
+          await JobRepository.incrementCompleted(item.job_id);
 
-          AuditRepository.log({
+          await AuditRepository.log({
             jobId: item.job_id,
             itemId: item.id,
             level: 'INFO',
@@ -81,18 +81,18 @@ export class PhotosMigrationEngine {
 
       } catch (err) {
         attempt++;
-        dbIncrementRetry(item.id, attempt);
+        await ItemRepository.updateRetryCount(item.id, attempt);
         
         // Error classification
         if (err.statusCode === 401) {
-          ItemRepository.updateStatus(item.id, 'AUTH_REQUIRED', { errorMessage: err.message });
-          AuditRepository.log({ jobId: item.job_id, itemId: item.id, level: 'ERROR', eventType: 'AUTH_REQUIRED', message: err.message });
+          await ItemRepository.updateStatus(item.id, 'AUTH_REQUIRED', { errorMessage: err.message });
+          await AuditRepository.log({ jobId: item.job_id, itemId: item.id, level: 'ERROR', eventType: 'AUTH_REQUIRED', message: err.message });
           return { success: false, errorType: 'AUTH_REQUIRED', error: err.message };
         }
 
         if (err.statusCode === 403 && err.source === 'SOURCE_DOWNLOAD') {
-          ItemRepository.updateStatus(item.id, 'SOURCE_ACCESS_EXPIRED', { errorMessage: err.message });
-          AuditRepository.log({ jobId: item.job_id, itemId: item.id, level: 'ERROR', eventType: 'SOURCE_ACCESS_EXPIRED', message: err.message });
+          await ItemRepository.updateStatus(item.id, 'SOURCE_ACCESS_EXPIRED', { errorMessage: err.message });
+          await AuditRepository.log({ jobId: item.job_id, itemId: item.id, level: 'ERROR', eventType: 'SOURCE_ACCESS_EXPIRED', message: err.message });
           return { success: false, errorType: 'SOURCE_ACCESS_EXPIRED', error: err.message };
         }
 
@@ -100,7 +100,7 @@ export class PhotosMigrationEngine {
 
         if ((isRateLimit || err.statusCode >= 500) && attempt <= maxRetries) {
           const backoff = attempt * 2500;
-          AuditRepository.log({
+          await AuditRepository.log({
             jobId: item.job_id,
             itemId: item.id,
             level: 'WARN',
@@ -112,10 +112,10 @@ export class PhotosMigrationEngine {
         }
 
         console.error(`Error migrating ${item.source_name}:`, err.message);
-        ItemRepository.updateStatus(item.id, attempt > maxRetries ? 'FAILED' : 'FAILED_RETRYABLE', { errorMessage: err.message });
-        if (attempt > maxRetries) JobRepository.incrementFailed(item.job_id);
+        await ItemRepository.updateStatus(item.id, attempt > maxRetries ? 'FAILED' : 'FAILED_RETRYABLE', { errorMessage: err.message });
+        if (attempt > maxRetries) await JobRepository.incrementFailed(item.job_id);
 
-        AuditRepository.log({
+        await AuditRepository.log({
           jobId: item.job_id,
           itemId: item.id,
           level: 'ERROR',
@@ -128,15 +128,4 @@ export class PhotosMigrationEngine {
       }
     }
   }
-}
-
-function dbIncrementRetry(id, count) {
-  // Hacky way to inject it if not explicitly in repo class
-  import('../repositories/ItemRepository.js').then(m => {
-    import('../db/database.js').then(dbMod => {
-      try {
-        dbMod.db.prepare('UPDATE migration_items SET retry_count = ? WHERE id = ?').run(count, id);
-      } catch(e){}
-    });
-  });
 }

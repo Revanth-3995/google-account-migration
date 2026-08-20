@@ -9,7 +9,7 @@ import { buildPhotoFingerprint } from '../utils/fingerprintUtils.js';
 export const PhotosController = {
   async createSession(req, res) {
     try {
-      const sourceToken = AuthService.getSourceToken();
+      const sourceToken = await AuthService.getSourceToken();
       if (!sourceToken) return res.status(401).json({ error: 'Source account not connected' });
 
       const result = await PhotosService.createSession(sourceToken);
@@ -21,7 +21,7 @@ export const PhotosController = {
 
   async getSession(req, res) {
     try {
-      const sourceToken = AuthService.getSourceToken();
+      const sourceToken = await AuthService.getSourceToken();
       const result = await PhotosService.getSession(req.params.id, sourceToken);
       res.status(result.statusCode).json(result.data || result.raw);
     } catch (e) {
@@ -31,7 +31,7 @@ export const PhotosController = {
 
   async getMediaItems(req, res) {
     try {
-      const sourceToken = AuthService.getSourceToken();
+      const sourceToken = await AuthService.getSourceToken();
       const result = await PhotosService.getMediaItems(req.params.id, sourceToken);
       res.status(result.statusCode).json(result.data || result.raw);
     } catch (e) {
@@ -41,7 +41,7 @@ export const PhotosController = {
 
   async deleteSession(req, res) {
     try {
-      const sourceToken = AuthService.getSourceToken();
+      const sourceToken = await AuthService.getSourceToken();
       const result = await PhotosService.deleteSession(req.params.id, sourceToken);
       res.status(result.statusCode).json({ success: true });
     } catch (e) {
@@ -60,13 +60,13 @@ export const PhotosController = {
       }
 
       // Verify job exists and is actually in a recoverable state
-      const job = JobRepository.get(jobId);
+      const job = await JobRepository.get(jobId);
       if (!job) return res.status(404).json({ error: 'Job not found' });
       if (job.status !== 'RECOVERY_REQUIRED' && job.status !== 'PAUSED') {
         return res.status(400).json({ error: 'Job is not in a recoverable state. Current status: ' + job.status });
       }
 
-      const allItems = ItemRepository.getByJobId(jobId);
+      const allItems = await ItemRepository.getByJobId(jobId);
       const verifiedItems = allItems.filter(i => i.status === 'VERIFIED' || i.status === 'COMPLETED');
       // All items that still need source access refreshed
       const unfinishedItems = allItems.filter(i => i.status !== 'VERIFIED' && i.status !== 'COMPLETED');
@@ -126,7 +126,7 @@ export const PhotosController = {
         const { db } = await import('../db/database.js');
         const updateStmt = db.prepare('UPDATE migration_items SET source_item_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
         for (const upd of pendingUpdates) {
-          updateStmt.run(upd.newBaseUrl, 'PENDING', upd.id);
+          await updateStmt.run(upd.newBaseUrl, 'PENDING', upd.id);
         }
       }
 
@@ -134,11 +134,11 @@ export const PhotosController = {
 
       if (canResume) {
         // Only now is it safe to resume
-        AuditRepository.log({ jobId, level: 'INFO', eventType: 'RECOVERY_RESUME', message: logMsg });
+        await AuditRepository.log({ jobId, level: 'INFO', eventType: 'RECOVERY_RESUME', message: logMsg });
         // Dynamically import to avoid any circular dependency issues
         import('../jobs/JobQueue.js').then(jq => jq.JobQueue.startJob(jobId, true));
       } else {
-        AuditRepository.log({ jobId, level: 'WARN', eventType: 'RECOVERY_INCOMPLETE', message: logMsg });
+        await AuditRepository.log({ jobId, level: 'WARN', eventType: 'RECOVERY_INCOMPLETE', message: logMsg });
       }
 
       res.json({
@@ -173,15 +173,15 @@ export const PhotosController = {
       });
 
       const accounts = await import('../repositories/AccountRepository.js');
-      const src = accounts.AccountRepository.get('source');
-      const dst = accounts.AccountRepository.get('destination');
+      const src = await accounts.AccountRepository.get('source');
+      const dst = await accounts.AccountRepository.get('destination');
 
       if (!src || !dst) {
         return res.status(400).json({ error: 'Both Source and Destination accounts must be connected.' });
       }
 
       const jobId = 'photos_' + Date.now();
-      JobRepository.create({
+      await JobRepository.create({
         id: jobId,
         serviceType: 'PHOTOS',
         migrationMode: 'IN_MEMORY_STREAM',
@@ -217,9 +217,9 @@ export const PhotosController = {
         };
       });
 
-      ItemRepository.createBatch(dbItems);
+      await ItemRepository.createBatch(dbItems);
 
-      AuditRepository.log({
+      await AuditRepository.log({
         jobId,
         level: 'INFO',
         eventType: 'JOB_CREATE',

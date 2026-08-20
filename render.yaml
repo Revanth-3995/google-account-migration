@@ -6,10 +6,6 @@ services:
     buildCommand: npm install --prefix server && npm install --prefix client && npm --prefix client run build
     startCommand: npm --prefix server start
     autoDeploy: true
-    disk:
-      name: migration-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
@@ -17,8 +13,10 @@ services:
         value: 3000
       - key: SERVE_CLIENT_DIST
         value: "1"
-      - key: DATABASE_PATH
-        value: /var/data/migration.db
+      - key: DATABASE_TYPE
+        value: postgres
+      - key: DATABASE_URL
+        sync: false
       - key: FRONTEND_URL
         sync: false
       - key: CORS_ORIGIN
@@ -31,6 +29,8 @@ services:
         sync: false
       - key: GOOGLE_PROJECT_ID
         sync: false
+      - key: DATABASE_SSL
+        value: "true"
       - key: GOOGLE_AUTH_URI
         value: https://accounts.google.com/o/oauth2/auth
       - key: GOOGLE_TOKEN_URI

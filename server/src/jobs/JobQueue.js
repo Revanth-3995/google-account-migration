@@ -14,48 +14,48 @@ function sleep(ms) {
 }
 
 export class JobQueue {
-  static init() {
+  static async init() {
     console.log('[JobQueue] Initializing application startup recovery...');
     // Recover interrupted jobs (RUNNING, PAUSED with ambiguous PROCESSING items)
     const stmt = db.prepare(`SELECT id, status FROM migration_jobs WHERE status IN ('RUNNING', 'PAUSED')`);
-    const interruptedJobs = stmt.all();
+    const interruptedJobs = await stmt.all();
 
     for (const job of interruptedJobs) {
       console.log(`[JobQueue] Recovering interrupted job ${job.id}`);
-      db.prepare(`UPDATE migration_items SET status = 'PENDING' WHERE job_id = ? AND status = 'PROCESSING'`).run(job.id);
+      await db.prepare(`UPDATE migration_items SET status = 'PENDING' WHERE job_id = ? AND status = 'PROCESSING'`).run(job.id);
       
       // If we restart, mark RUNNING jobs as PAUSED so the user can manually resume them
       if (job.status === 'RUNNING') {
-        JobRepository.updateStatus(job.id, 'PAUSED');
+        await JobRepository.updateStatus(job.id, 'PAUSED');
       }
     }
   }
 
   static async startJob(jobId, retryOnly = false) {
-    const job = JobRepository.get(jobId);
+    const job = await JobRepository.get(jobId);
     if (!job) throw new Error('Job not found');
 
     if (retryOnly) {
       // Reset failed and auth_required items to PENDING
-      const failedItems = ItemRepository.getByJobId(jobId).filter(i => 
+      const failedItems = (await ItemRepository.getByJobId(jobId)).filter(i => 
         i.status === 'FAILED' || i.status === 'FAILED_RETRYABLE' || i.status === 'AUTH_REQUIRED'
       );
       for (const fi of failedItems) {
-        ItemRepository.updateStatus(fi.id, 'PENDING');
+        await ItemRepository.updateStatus(fi.id, 'PENDING');
       }
-      JobRepository.updateStatus(jobId, 'RUNNING', { failed_items: 0 });
+      await JobRepository.updateStatus(jobId, 'RUNNING', { failed_items: 0 });
     } else {
-      JobRepository.updateStatus(jobId, 'RUNNING');
+      await JobRepository.updateStatus(jobId, 'RUNNING');
     }
 
     EventBroadcaster.broadcast('JOB_STATUS', { jobId, status: 'RUNNING' });
-    AuditRepository.log({ jobId, level: 'INFO', eventType: 'JOB_START', message: `Job started (${job.service_type})` });
+    await AuditRepository.log({ jobId, level: 'INFO', eventType: 'JOB_START', message: `Job started (${job.service_type})` });
 
-    const sourceToken = AuthService.getSourceToken();
-    const destToken = AuthService.getDestToken();
+    const sourceToken = await AuthService.getSourceToken();
+    const destToken = await AuthService.getDestToken();
 
     if (!sourceToken || !destToken) {
-      JobRepository.updateStatus(jobId, 'AUTH_REQUIRED');
+      await JobRepository.updateStatus(jobId, 'AUTH_REQUIRED');
       EventBroadcaster.broadcast('JOB_STATUS', { jobId, status: 'AUTH_REQUIRED', error: 'Missing active account tokens' });
       return;
     }
@@ -73,7 +73,7 @@ export class JobQueue {
     // Run in background
     (async () => {
       try {
-        const pendingItems = ItemRepository.getPendingItems(jobId);
+        const pendingItems = await ItemRepository.getPendingItems(jobId);
 
         if (job.service_type === 'DRIVE') {
           const folders = pendingItems.filter(i => i.item_type === 'FOLDER');
@@ -134,7 +134,7 @@ export class JobQueue {
           }
         }
 
-        const allItems = ItemRepository.getByJobId(jobId);
+        const allItems = await ItemRepository.getByJobId(jobId);
         // Treat VERIFIED same as COMPLETED for accounting
         const completedCount = allItems.filter(i => i.status === 'COMPLETED' || i.status === 'VERIFIED').length;
         const failedCount = allItems.filter(i => i.status === 'FAILED' || i.status === 'FAILED_RETRYABLE' || i.status === 'AUTH_REQUIRED' || i.status === 'SOURCE_ACCESS_EXPIRED').length;
@@ -146,17 +146,17 @@ export class JobQueue {
           (failedCount > 0 && completedCount > 0) ? 'COMPLETED_WITH_ERRORS' :
           (failedCount > 0 && completedCount === 0) ? 'FAILED' : 'COMPLETED';
 
-        JobRepository.updateStatus(jobId, finalStatus, {
+        await JobRepository.updateStatus(jobId, finalStatus, {
           completed_items: completedCount,
           failed_items: failedCount
         });
 
         EventBroadcaster.broadcast('JOB_STATUS', { jobId, status: finalStatus });
-        AuditRepository.log({ jobId, level: 'INFO', eventType: 'JOB_FINISH', message: `Job finished with status: ${finalStatus} (${completedCount} completed, ${failedCount} failed)` });
+        await AuditRepository.log({ jobId, level: 'INFO', eventType: 'JOB_FINISH', message: `Job finished with status: ${finalStatus} (${completedCount} completed, ${failedCount} failed)` });
 
       } catch (err) {
         console.error('Job queue error:', err);
-        JobRepository.updateStatus(jobId, 'FAILED');
+        await JobRepository.updateStatus(jobId, 'FAILED');
         EventBroadcaster.broadcast('JOB_STATUS', { jobId, status: 'FAILED', error: err.message });
       } finally {
         activeJobs.delete(jobId);
@@ -164,23 +164,23 @@ export class JobQueue {
     })();
   }
 
-  static pauseJob(jobId) {
+  static async pauseJob(jobId) {
     const state = activeJobs.get(jobId);
     if (state) {
       state.paused = true;
-      JobRepository.updateStatus(jobId, 'PAUSED');
+      await JobRepository.updateStatus(jobId, 'PAUSED');
       EventBroadcaster.broadcast('JOB_STATUS', { jobId, status: 'PAUSED' });
       return true;
     }
     return false;
   }
 
-  static cancelJob(jobId) {
+  static async cancelJob(jobId) {
     const state = activeJobs.get(jobId);
     if (state) {
       state.cancelled = true;
     }
-    JobRepository.updateStatus(jobId, 'CANCELLED');
+    await JobRepository.updateStatus(jobId, 'CANCELLED');
     EventBroadcaster.broadcast('JOB_STATUS', { jobId, status: 'CANCELLED' });
     return true;
   }

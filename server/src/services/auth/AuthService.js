@@ -1,22 +1,22 @@
 import { AccountRepository } from '../../repositories/AccountRepository.js';
 
 export class AuthService {
-  static saveToken(accountData) {
-    return AccountRepository.save(accountData);
+  static async saveToken(accountData) {
+    return await AccountRepository.save(accountData);
   }
 
-  static getTokens() {
-    return AccountRepository.getAll();
+  static async getTokens() {
+    return await AccountRepository.getAll();
   }
 
-  static getSourceToken() {
-    const acc = AccountRepository.get('source');
+  static async getSourceToken() {
+    const acc = await AccountRepository.get('source');
     if (!acc || !acc.token_data) return null;
     return JSON.parse(acc.token_data).access_token;
   }
 
-  static getDestToken() {
-    const acc = AccountRepository.get('destination');
+  static async getDestToken() {
+    const acc = await AccountRepository.get('destination');
     if (!acc || !acc.token_data) return null;
     return JSON.parse(acc.token_data).access_token;
   }
