@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: google-account-migration
+    env: node
+    plan: starter
+    buildCommand: npm install --prefix server && npm install --prefix client && npm --prefix client run build
+    startCommand: npm --prefix server start
+    autoDeploy: true
+    disk:
+      name: migration-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: SERVE_CLIENT_DIST
+        value: "1"
+      - key: DATABASE_PATH
+        value: /var/data/migration.db
+      - key: FRONTEND_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: GOOGLE_PROJECT_ID
+        sync: false
+      - key: GOOGLE_AUTH_URI
+        value: https://accounts.google.com/o/oauth2/auth
+      - key: GOOGLE_TOKEN_URI
+        value: https://oauth2.googleapis.com/token
+      - key: PHOTOS_TRANSFER_DIAGNOSTICS
+        value: "0"
+      - key: PHOTOS_TRANSFER_HASH_DIAGNOSTICS
+        value: "0"
+      - key: PHOTOS_IMAGE_VARIANT_TEST
+        value: "0"

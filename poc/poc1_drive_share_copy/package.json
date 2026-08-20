@@ -1,0 +1,14 @@
+{
+  "name": "poc1-drive-share-copy",
+  "version": "1.0.0",
+  "description": "POC-1: Zero-dependency local browser test harness for Google Drive Picker + Share + Copy using candidate drive.file scope only",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "private": true
+}

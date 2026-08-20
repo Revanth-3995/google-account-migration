@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PHOTOS-POC-2: In-Memory Relay to Destination Account B</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #38bdf8;
+      --primary-hover: #0ea5e9;
+      --success: #4ade80;
+      --danger: #f87171;
+      --border: #334155;
+      --code-bg: #020617;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 24px;
+      line-height: 1.5;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    header {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 8px; color: var(--primary); }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: #0369a1;
+      color: #e0f2fe;
+      margin-bottom: 8px;
+    }
+    .guardrail-box {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid #0284c7;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+    }
+    .step-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .step-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .step-title { font-weight: 600; font-size: 1rem; }
+    .step-desc { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; }
+    .status-tag {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #334155;
+      color: var(--text-muted);
+    }
+    .status-tag.ok { background: #166534; color: #bbf7d0; }
+    .status-tag.active { background: #854d0e; color: #fef08a; }
+    .status-tag.error { background: #991b1b; color: #fecaca; }
+    button {
+      background: var(--primary);
+      color: #0f172a;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-right: 8px;
+      margin-top: 4px;
+    }
+    button:hover:not(:disabled) { background: var(--primary-hover); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .evidence-box {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 12px;
+      font-family: monospace;
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+      max-height: 250px;
+      overflow-y: auto;
+      color: #38bdf8;
+    }
+    .account-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .account-card {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+    }
+    .account-card h4 { font-size: 0.85rem; margin-bottom: 4px; color: var(--primary); }
+    .account-card p { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px; }
+  </style>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge">Isolated Feasibility Harness</div>
+      <h1>PHOTOS-POC-2: In-Memory Relay & Destination Upload</h1>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">
+        Testing source-side Picker selection (Account A), in-memory RAM streaming (0 disk persistence), and destination upload under <code>photoslibrary.appendonly</code> (Account B).
+      </p>
+    </header>
+
+    <div class="guardrail-box">
+      <strong>Strict Scopes Enforced:</strong><br>
+      • Account A (Source): <code>https://www.googleapis.com/auth/photospicker.mediaitems.readonly</code><br>
+      • Account B (Destination): <code>https://www.googleapis.com/auth/photoslibrary.appendonly</code><br>
+      • Disk Persistence: <strong>0 bytes written to disk</strong> (Ephemeral RAM relay only).
+    </div>
+
+    <!-- Step 1: Authentication -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-title">1. Authenticate Dual Accounts</div>
+        <span class="status-tag" id="status-auth">Pending</span>
+      </div>
+      <div class="step-desc">
+        Authenticate Account A for Picker selection and Account B for library upload.
+      </div>
+      <div class="account-grid">
+        <div class="account-card">
+          <h4>Account A (Source)</h4>
+          <p>Scope: <code>photospicker.mediaitems.readonly</code></p>
+          <button onclick="authAccountA()" id="btn-auth-a">Connect Account A</button>
+          <div id="auth-a-status" style="font-size: 0.75rem; margin-top: 4px; color: var(--text-muted);">Not Connected</div>
+        </div>
+        <div class="account-card">
+          <h4>Account B (Destination)</h4>
+          <p>Scope: <code>photoslibrary.appendonly</code></p>
+          <button onclick="authAccountB()" id="btn-auth-b">Connect Account B</button>
+          <div id="auth-b-status" style="font-size: 0.75rem; margin-top: 4px; color: var(--text-muted);">Not Connected</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Create Picker Session -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-title">2. Create Google Photos Picker Session (Account A)</div>
+        <span class="status-tag" id="status-session">Pending Auth</span>
+      </div>
+      <div class="step-desc">
+        Calls <code>POST /v1/sessions</code> on <code>photospicker.googleapis.com</code> to obtain a <code>pickerUri</code>.
+      </div>
+      <button onclick="createPickerSession()" id="btn-create-session" disabled>Create Picker Session</button>
+      <div id="session-info" class="evidence-box" style="display: none;"></div>
+    </div>
+
+    <!-- Step 3: Picker Selection & Polling -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-title">3. Select Photo & Poll Selection Status</div>
+        <span class="status-tag" id="status-poll">Pending Session</span>
+      </div>
+      <div class="step-desc">
+        Open Picker UI, select your test photo in Account A, click Done, then start status polling.
+      </div>
+      <button onclick="openPickerUi()" id="btn-open-picker" disabled>1. Open Google Photos Picker UI</button>
+      <button onclick="startPolling()" id="btn-poll" disabled>2. Start Status Polling</button>
+      <div id="poll-info" class="evidence-box" style="display: none;"></div>
+    </div>
+
+    <!-- Step 4: Retrieve Selected Metadata -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-title">4. Retrieve Selected Media Item Descriptors</div>
+        <span class="status-tag" id="status-items">Pending Selection</span>
+      </div>
+      <div class="step-desc">
+        Extracts <code>baseUrl</code> and metadata descriptors from Account A.
+      </div>
+      <button onclick="fetchPickedItems()" id="btn-fetch-items" disabled>Retrieve Picked Media Items</button>
+      <div id="items-info" class="evidence-box" style="display: none;"></div>
+    </div>
+
+    <!-- Step 5: In-Memory Relay & Destination Upload -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-title">5. Execute In-Memory Relay → Account B Upload</div>
+        <span class="status-tag" id="status-relay">Pending Descriptors</span>
+      </div>
+      <div class="step-desc">
+        Downloads bytes into server RAM, streams to Account B's <code>/v1/uploads</code> endpoint, calls <code>batchCreate</code>, and verifies 0 disk writes.
+      </div>
+      <button onclick="executeInMemoryRelay()" id="btn-relay" disabled>Execute In-Memory Relay & Destination Upload</button>
+      <div id="relay-info" class="evidence-box" style="display: none;"></div>
+    </div>
+
+    <!-- Step 6: Session Cleanup -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-title">6. Session Cleanup</div>
+        <span class="status-tag" id="status-cleanup">Optional</span>
+      </div>
+      <div class="step-desc">
+        Deletes Account A's picker session resources on Google's servers.
+      </div>
+      <button onclick="deleteSession()" id="btn-cleanup" disabled>Delete Session Resources</button>
+      <div id="cleanup-info" class="evidence-box" style="display: none;"></div>
+    </div>
+
+    <!-- Execution Log -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-title">Live Execution Log & Evidence Output</div>
+        <button onclick="clearLogs()" style="padding: 2px 8px; font-size: 0.75rem;">Clear Log</button>
+      </div>
+      <div id="log-output" class="evidence-box" style="max-height: 350px;">// PHOTOS-POC-2 Client Log ready. Requests and responses will appear here...</div>
+    </div>
+  </div>
+
+  <script>
+    let clientId = '';
+    let tokenClientA = null;
+    let tokenClientB = null;
+    let accountAToken = null;
+    let accountBToken = null;
+    let activeSession = null;
+    let pickedMediaItems = [];
+    let pollIntervalId = null;
+
+    function log(msg, obj = null) {
+      const logBox = document.getElementById('log-output');
+      const time = new Date().toLocaleTimeString();
+      let line = '[' + time + '] ' + msg;
+      if (obj) {
+        line += '\n' + JSON.stringify(obj, null, 2);
+      }
+      logBox.innerText += '\n\n' + line;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function clearLogs() {
+      document.getElementById('log-output').innerText = '// Logs cleared.';
+    }
+
+    window.onload = async () => {
+      try {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+        clientId = config.clientId;
+        if (!clientId) {
+          log('ERROR: Client ID missing in credentials.json');
+          return;
+        }
+        initOAuth();
+      } catch (err) {
+        log('Error loading config:', err.message);
+      }
+    };
+
+    function initOAuth() {
+      tokenClientA = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly',
+        callback: (res) => {
+          if (res.error) {
+            log('OAuth Account A Error:', res);
+            return;
+          }
+          accountAToken = res.access_token;
+          document.getElementById('auth-a-status').innerText = 'Connected (photospicker.mediaitems.readonly)';
+          document.getElementById('auth-a-status').style.color = '#4ade80';
+          log('=== Account A Authenticated ===', { scope: res.scope, expires_in: res.expires_in });
+          checkAuthReady();
+        }
+      });
+
+      tokenClientB = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/photoslibrary.appendonly',
+        callback: (res) => {
+          if (res.error) {
+            log('OAuth Account B Error:', res);
+            return;
+          }
+          accountBToken = res.access_token;
+          document.getElementById('auth-b-status').innerText = 'Connected (photoslibrary.appendonly)';
+          document.getElementById('auth-b-status').style.color = '#4ade80';
+          log('=== Account B Authenticated ===', { scope: res.scope, expires_in: res.expires_in });
+          checkAuthReady();
+        }
+      });
+    }
+
+    function authAccountA() {
+      if (tokenClientA) tokenClientA.requestAccessToken({ prompt: 'select_account' });
+    }
+
+    function authAccountB() {
+      if (tokenClientB) tokenClientB.requestAccessToken({ prompt: 'select_account' });
+    }
+
+    function checkAuthReady() {
+      if (accountAToken && accountBToken) {
+        document.getElementById('status-auth').innerText = 'Both Connected';
+        document.getElementById('status-auth').className = 'status-tag ok';
+        document.getElementById('btn-create-session').disabled = false;
+      }
+    }
+
+    async function createPickerSession() {
+      try {
+        log('=== Step 2: Creating Picker Session (Account A) ===');
+        const res = await fetch('/api/proxy/photos-picker/v1/sessions', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + accountAToken,
+            'Content-Type': 'application/json'
+          }
+        });
+        const data = await res.json();
+        log('Step 2 Result:', { httpStatus: res.status, data });
+
+        if (res.ok && data.id) {
+          activeSession = data;
+          document.getElementById('status-session').innerText = 'Session Active';
+          document.getElementById('status-session').className = 'status-tag ok';
+          
+          const box = document.getElementById('session-info');
+          box.style.display = 'block';
+          box.innerText = 'SESSION CREATED:\nID: ' + data.id + '\npickerUri: ' + data.pickerUri + '\nexpireTime: ' + data.expireTime;
+
+          document.getElementById('btn-open-picker').disabled = false;
+          document.getElementById('btn-poll').disabled = false;
+        } else {
+          document.getElementById('status-session').innerText = 'Failed';
+          document.getElementById('status-session').className = 'status-tag error';
+        }
+      } catch (err) {
+        log('Error in createPickerSession:', err.message);
+      }
+    }
+
+    function openPickerUi() {
+      if (activeSession && activeSession.pickerUri) {
+        log('Opening Picker URI in new tab/window:', activeSession.pickerUri);
+        window.open(activeSession.pickerUri, '_blank', 'width=800,height=700');
+      }
+    }
+
+    async function checkSessionStatus() {
+      try {
+        const res = await fetch('/api/proxy/photos-picker/v1/sessions/' + activeSession.id, {
+          headers: { 'Authorization': 'Bearer ' + accountAToken }
+        });
+        const data = await res.json();
+        log('Polling Session Status:', data);
+
+        if (data.mediaItemsSet) {
+          clearInterval(pollIntervalId);
+          document.getElementById('status-poll').innerText = 'Selection Complete';
+          document.getElementById('status-poll').className = 'status-tag ok';
+          document.getElementById('btn-fetch-items').disabled = false;
+          
+          const box = document.getElementById('poll-info');
+          box.style.display = 'block';
+          box.innerText = 'SELECTION COMPLETE (mediaItemsSet: true)\nReady to retrieve picked items!';
+        }
+      } catch (err) {
+        log('Error polling session:', err.message);
+      }
+    }
+
+    function startPolling() {
+      document.getElementById('status-poll').innerText = 'Polling...';
+      document.getElementById('status-poll').className = 'status-tag active';
+      checkSessionStatus();
+      pollIntervalId = setInterval(checkSessionStatus, 5000);
+    }
+
+    async function fetchPickedItems() {
+      try {
+        log('=== Step 4: Retrieving Media Item Descriptors ===');
+        const res = await fetch('/api/proxy/photos-picker/v1/mediaItems?sessionId=' + activeSession.id, {
+          headers: { 'Authorization': 'Bearer ' + accountAToken }
+        });
+        const data = await res.json();
+        log('Step 4 Result:', { httpStatus: res.status, data });
+
+        if (res.ok && data.mediaItems) {
+          pickedMediaItems = data.mediaItems;
+          document.getElementById('status-items').innerText = 'Retrieved ' + pickedMediaItems.length + ' Item(s)';
+          document.getElementById('status-items').className = 'status-tag ok';
+
+          const box = document.getElementById('items-info');
+          box.style.display = 'block';
+          box.innerText = 'RETRIEVED MEDIA ITEMS (' + pickedMediaItems.length + '):\n' + JSON.stringify(pickedMediaItems, null, 2);
+
+          document.getElementById('btn-relay').disabled = false;
+          document.getElementById('btn-cleanup').disabled = false;
+        }
+      } catch (err) {
+        log('Error fetching items:', err.message);
+      }
+    }
+
+    async function executeInMemoryRelay() {
+      if (!pickedMediaItems || pickedMediaItems.length === 0) return;
+      const item = pickedMediaItems[0];
+      const baseUrl = item.mediaFile ? item.mediaFile.baseUrl : item.baseUrl;
+      const fileName = (item.mediaFile && item.mediaFile.filename) || 'test_photo_migrated.jpg';
+      const mimeType = (item.mediaFile && item.mediaFile.mimeType) || 'image/jpeg';
+
+      document.getElementById('status-relay').innerText = 'Streaming in RAM...';
+      document.getElementById('status-relay').className = 'status-tag active';
+
+      log('=== Step 5: Executing In-Memory Relay -> Account B Upload ===');
+      log('Target Item:', { fileName, mimeType, downloadUrl: baseUrl + '=d' });
+
+      try {
+        const res = await fetch('/api/relay/stream-photo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            downloadUrl: baseUrl + '=d',
+            fileName: fileName,
+            mimeType: mimeType,
+            accountAToken: accountAToken,
+            accountBToken: accountBToken
+          })
+        });
+
+        const report = await res.json();
+        log('=== Step 5 Relay & Upload Complete ===', report);
+
+        const box = document.getElementById('relay-info');
+        box.style.display = 'block';
+        box.innerText = 'IN-MEMORY RELAY & DESTINATION UPLOAD REPORT:\n' + JSON.stringify(report, null, 2);
+
+        if (res.ok && report.success) {
+          document.getElementById('status-relay').innerText = 'Uploaded to Account B (HTTP 200)';
+          document.getElementById('status-relay').className = 'status-tag ok';
+        } else {
+          document.getElementById('status-relay').innerText = 'Upload Error';
+          document.getElementById('status-relay').className = 'status-tag error';
+        }
+      } catch (err) {
+        log('Error executing relay:', err.message);
+        document.getElementById('status-relay').innerText = 'Relay Error';
+        document.getElementById('status-relay').className = 'status-tag error';
+      }
+    }
+
+    async function deleteSession() {
+      if (!activeSession) return;
+      try {
+        log('=== Step 6: Deleting Picker Session ===');
+        const res = await fetch('/api/proxy/photos-picker/v1/sessions/' + activeSession.id, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + accountAToken }
+        });
+        const data = await res.json();
+        log('Step 6 Result:', { httpStatus: res.status, data });
+
+        document.getElementById('status-cleanup').innerText = 'Cleaned Up (HTTP ' + res.status + ')';
+        document.getElementById('status-cleanup').className = 'status-tag ok';
+
+        const box = document.getElementById('cleanup-info');
+        box.style.display = 'block';
+        box.innerText = 'SESSION CLEANED UP (HTTP ' + res.status + ')';
+      } catch (err) {
+        log('Error deleting session:', err.message);
+      }
+    }
+  </script>
+</body>
+</html>

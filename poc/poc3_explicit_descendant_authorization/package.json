@@ -1,0 +1,14 @@
+﻿{
+  "name": "poc2-drive-folder-migration",
+  "version": "1.0.0",
+  "description": "POC-2: Isolated test harness for Drive folder hierarchy migration under minimum drive.file candidate scope",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "private": true
+}
