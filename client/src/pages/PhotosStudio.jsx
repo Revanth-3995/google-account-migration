@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 import { Badge } from '../components/Badge';
@@ -13,6 +13,7 @@ export function PhotosStudio({ setActiveTab }) {
     promptLogin,
     ensureMigrationAccountsReady,
     migrationAuthState,
+    refreshAccounts,
     setActiveJobId,
     isAuthenticating
   } = useApp();
@@ -21,6 +22,10 @@ export function PhotosStudio({ setActiveTab }) {
   const [pickedItems, setPickedItems] = useState([]);
   const [isCreatingJob, setIsCreatingJob] = useState(false);
   const [authError, setAuthError] = useState(false);
+
+  useEffect(() => {
+    refreshAccounts();
+  }, []);
 
   const createSession = async () => {
     const ok = await ensureMigrationAccountsReady();
