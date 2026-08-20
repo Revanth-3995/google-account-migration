@@ -18,7 +18,8 @@ export const AccountController = {
         }
         return {
           ...account,
-          token_data: tokenData
+          token_data: tokenData,
+          has_token_data: !!account.token_data
         };
       });
       res.json(safeAccounts);
