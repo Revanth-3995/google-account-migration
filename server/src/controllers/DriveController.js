@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { DriveService } from '../services/drive/DriveService.js';
 import { AuthService } from '../services/auth/AuthService.js';
 import { JobRepository } from '../repositories/JobRepository.js';
@@ -9,7 +10,7 @@ export const DriveController = {
   async discoverManifest(req, res) {
     try {
       const { rootFolderId, rootFolderName } = req.body;
-      const sourceToken = await AuthService.getSourceToken();
+      const sourceToken = await AuthService.getSourceToken(req.ownerSessionId);
       if (!sourceToken) {
         return res.status(401).json({ error: 'Source account not connected' });
       }
@@ -79,15 +80,15 @@ export const DriveController = {
         return (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' });
       });
       const accounts = await import('../repositories/AccountRepository.js');
-      const src = await accounts.AccountRepository.get('source');
-      const dst = await accounts.AccountRepository.get('destination');
+      const src = await accounts.AccountRepository.getByRole(req.ownerSessionId, 'source');
+      const dst = await accounts.AccountRepository.getByRole(req.ownerSessionId, 'destination');
 
       if (!src || !dst) {
         return res.status(400).json({ error: 'Both Source and Destination accounts must be connected.' });
       }
 
-      const jobId = 'drive_' + Date.now();
-      await JobRepository.create({
+      const jobId = 'drive_' + crypto.randomUUID();
+      await JobRepository.create(req.ownerSessionId, {
         id: jobId,
         serviceType: 'DRIVE',
         migrationMode: migrationMode || 'HIERARCHY',
@@ -112,9 +113,9 @@ export const DriveController = {
         status: 'PENDING'
       }));
 
-      await ItemRepository.createBatch(dbItems);
+      await ItemRepository.createBatch(req.ownerSessionId, dbItems);
 
-      await AuditRepository.log({
+      await AuditRepository.log(req.ownerSessionId, {
         jobId,
         level: 'INFO',
         eventType: 'JOB_CREATE',

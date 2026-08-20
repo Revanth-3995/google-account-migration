@@ -16,9 +16,9 @@ export function Accounts() {
     migrationAuthState
   } = useApp();
 
-  const disconnectAccount = async (id) => {
-    if (confirm(`Disconnect ${id === 'source' ? 'Source Account A' : 'Destination Account B'}?`)) {
-      await api.deleteAccount(id);
+  const disconnectAccount = async (role) => {
+    if (confirm(`Disconnect ${role === 'source' ? 'Source Account A' : 'Destination Account B'}?`)) {
+      await api.deleteAccount(role);
       refreshAccounts();
     }
   };

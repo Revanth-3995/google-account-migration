@@ -17,45 +17,45 @@ export class JobQueue {
   static async init() {
     console.log('[JobQueue] Initializing application startup recovery...');
     // Recover interrupted jobs (RUNNING, PAUSED with ambiguous PROCESSING items)
-    const stmt = db.prepare(`SELECT id, status FROM migration_jobs WHERE status IN ('RUNNING', 'PAUSED')`);
+    const stmt = db.prepare(`SELECT id, owner_session_id, status FROM migration_jobs WHERE status IN ('RUNNING', 'PAUSED')`);
     const interruptedJobs = await stmt.all();
 
     for (const job of interruptedJobs) {
       console.log(`[JobQueue] Recovering interrupted job ${job.id}`);
-      await db.prepare(`UPDATE migration_items SET status = 'PENDING' WHERE job_id = ? AND status = 'PROCESSING'`).run(job.id);
+      await db.prepare(`UPDATE migration_items SET status = 'PENDING' WHERE owner_session_id = ? AND job_id = ? AND status = 'PROCESSING'`).run(job.owner_session_id, job.id);
       
       // If we restart, mark RUNNING jobs as PAUSED so the user can manually resume them
       if (job.status === 'RUNNING') {
-        await JobRepository.updateStatus(job.id, 'PAUSED');
+        await JobRepository.updateStatus(job.owner_session_id, job.id, 'PAUSED');
       }
     }
   }
 
-  static async startJob(jobId, retryOnly = false) {
-    const job = await JobRepository.get(jobId);
+  static async startJob(ownerSessionId, jobId, retryOnly = false) {
+    const job = await JobRepository.get(ownerSessionId, jobId);
     if (!job) throw new Error('Job not found');
 
     if (retryOnly) {
       // Reset failed and auth_required items to PENDING
-      const failedItems = (await ItemRepository.getByJobId(jobId)).filter(i => 
+      const failedItems = (await ItemRepository.getByJobId(ownerSessionId, jobId)).filter(i => 
         i.status === 'FAILED' || i.status === 'FAILED_RETRYABLE' || i.status === 'AUTH_REQUIRED'
       );
       for (const fi of failedItems) {
-        await ItemRepository.updateStatus(fi.id, 'PENDING');
+        await ItemRepository.updateStatus(ownerSessionId, fi.id, 'PENDING');
       }
-      await JobRepository.updateStatus(jobId, 'RUNNING', { failed_items: 0 });
+      await JobRepository.updateStatus(ownerSessionId, jobId, 'RUNNING', { failed_items: 0 });
     } else {
-      await JobRepository.updateStatus(jobId, 'RUNNING');
+      await JobRepository.updateStatus(ownerSessionId, jobId, 'RUNNING');
     }
 
     EventBroadcaster.broadcast('JOB_STATUS', { jobId, status: 'RUNNING' });
-    await AuditRepository.log({ jobId, level: 'INFO', eventType: 'JOB_START', message: `Job started (${job.service_type})` });
+    await AuditRepository.log(ownerSessionId, { jobId, level: 'INFO', eventType: 'JOB_START', message: `Job started (${job.service_type})` });
 
-    const sourceToken = await AuthService.getSourceToken();
-    const destToken = await AuthService.getDestToken();
+    const sourceToken = await AuthService.getSourceToken(ownerSessionId);
+    const destToken = await AuthService.getDestToken(ownerSessionId);
 
     if (!sourceToken || !destToken) {
-      await JobRepository.updateStatus(jobId, 'AUTH_REQUIRED');
+      await JobRepository.updateStatus(ownerSessionId, jobId, 'AUTH_REQUIRED');
       EventBroadcaster.broadcast('JOB_STATUS', { jobId, status: 'AUTH_REQUIRED', error: 'Missing active account tokens' });
       return;
     }
@@ -73,7 +73,7 @@ export class JobQueue {
     // Run in background
     (async () => {
       try {
-        const pendingItems = await ItemRepository.getPendingItems(jobId);
+        const pendingItems = await ItemRepository.getPendingItems(ownerSessionId, jobId);
 
         if (job.service_type === 'DRIVE') {
           const folders = pendingItems.filter(i => i.item_type === 'FOLDER');
@@ -91,6 +91,8 @@ export class JobQueue {
               sourceToken,
               destToken,
               destEmail: job.dest_email,
+              ownerSessionId,
+              jobId,
               folderMap: state.folderMap
             });
           }
@@ -105,6 +107,8 @@ export class JobQueue {
                 sourceToken,
                 destToken,
                 destEmail: job.dest_email,
+                ownerSessionId,
+                jobId,
                 folderMap: state.folderMap
               });
             }
@@ -118,7 +122,9 @@ export class JobQueue {
             const item = pendingItems[i];
             const result = await PhotosMigrationEngine.processItem(item, {
               sourceToken,
-              destToken
+              destToken,
+              ownerSessionId,
+              jobId
             });
             
             if (result && !result.success) {
@@ -134,7 +140,7 @@ export class JobQueue {
           }
         }
 
-        const allItems = await ItemRepository.getByJobId(jobId);
+        const allItems = await ItemRepository.getByJobId(ownerSessionId, jobId);
         // Treat VERIFIED same as COMPLETED for accounting
         const completedCount = allItems.filter(i => i.status === 'COMPLETED' || i.status === 'VERIFIED').length;
         const failedCount = allItems.filter(i => i.status === 'FAILED' || i.status === 'FAILED_RETRYABLE' || i.status === 'AUTH_REQUIRED' || i.status === 'SOURCE_ACCESS_EXPIRED').length;
@@ -146,17 +152,17 @@ export class JobQueue {
           (failedCount > 0 && completedCount > 0) ? 'COMPLETED_WITH_ERRORS' :
           (failedCount > 0 && completedCount === 0) ? 'FAILED' : 'COMPLETED';
 
-        await JobRepository.updateStatus(jobId, finalStatus, {
+        await JobRepository.updateStatus(ownerSessionId, jobId, finalStatus, {
           completed_items: completedCount,
           failed_items: failedCount
         });
 
         EventBroadcaster.broadcast('JOB_STATUS', { jobId, status: finalStatus });
-        await AuditRepository.log({ jobId, level: 'INFO', eventType: 'JOB_FINISH', message: `Job finished with status: ${finalStatus} (${completedCount} completed, ${failedCount} failed)` });
+        await AuditRepository.log(ownerSessionId, { jobId, level: 'INFO', eventType: 'JOB_FINISH', message: `Job finished with status: ${finalStatus} (${completedCount} completed, ${failedCount} failed)` });
 
       } catch (err) {
         console.error('Job queue error:', err);
-        await JobRepository.updateStatus(jobId, 'FAILED');
+        await JobRepository.updateStatus(ownerSessionId, jobId, 'FAILED');
         EventBroadcaster.broadcast('JOB_STATUS', { jobId, status: 'FAILED', error: err.message });
       } finally {
         activeJobs.delete(jobId);
@@ -164,23 +170,23 @@ export class JobQueue {
     })();
   }
 
-  static async pauseJob(jobId) {
+  static async pauseJob(ownerSessionId, jobId) {
     const state = activeJobs.get(jobId);
     if (state) {
       state.paused = true;
-      await JobRepository.updateStatus(jobId, 'PAUSED');
+      await JobRepository.updateStatus(ownerSessionId, jobId, 'PAUSED');
       EventBroadcaster.broadcast('JOB_STATUS', { jobId, status: 'PAUSED' });
       return true;
     }
     return false;
   }
 
-  static async cancelJob(jobId) {
+  static async cancelJob(ownerSessionId, jobId) {
     const state = activeJobs.get(jobId);
     if (state) {
       state.cancelled = true;
     }
-    await JobRepository.updateStatus(jobId, 'CANCELLED');
+    await JobRepository.updateStatus(ownerSessionId, jobId, 'CANCELLED');
     EventBroadcaster.broadcast('JOB_STATUS', { jobId, status: 'CANCELLED' });
     return true;
   }

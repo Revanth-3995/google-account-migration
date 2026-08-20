@@ -57,6 +57,21 @@ function createPrepared(sql) {
   };
 }
 
+async function ensureColumn({ table, column, definition, backend }) {
+  if (backend === 'postgres') {
+    await db.exec(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${column} ${definition};`);
+    return;
+  }
+
+  try {
+    await db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
+  } catch (err) {
+    if (!String(err.message || '').toLowerCase().includes('duplicate column name')) {
+      throw err;
+    }
+  }
+}
+
 export const db = {
   prepare(sql) {
     return createPrepared(sql);
@@ -145,6 +160,9 @@ async function createSchemaSQLite() {
     );
   `);
 
+  await ensureColumn({ table: 'accounts', column: 'owner_session_id', definition: "TEXT NOT NULL DEFAULT ''", backend: 'sqlite' });
+  await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_owner_role ON accounts(owner_session_id, role);`);
+
   await db.exec(`
     CREATE TABLE IF NOT EXISTS migration_jobs (
       id TEXT PRIMARY KEY,
@@ -161,6 +179,9 @@ async function createSchemaSQLite() {
       completed_at DATETIME
     );
   `);
+
+  await ensureColumn({ table: 'migration_jobs', column: 'owner_session_id', definition: "TEXT NOT NULL DEFAULT ''", backend: 'sqlite' });
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_migration_jobs_owner ON migration_jobs(owner_session_id);`);
 
   await db.exec(`
     CREATE TABLE IF NOT EXISTS migration_items (
@@ -185,6 +206,9 @@ async function createSchemaSQLite() {
     );
   `);
 
+  await ensureColumn({ table: 'migration_items', column: 'owner_session_id', definition: "TEXT NOT NULL DEFAULT ''", backend: 'sqlite' });
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_migration_items_owner_job ON migration_items(owner_session_id, job_id);`);
+
   try {
     await db.exec('ALTER TABLE migration_items ADD COLUMN fingerprint TEXT;');
     console.log('[SQLite] Added fingerprint column to migration_items');
@@ -202,6 +226,9 @@ async function createSchemaSQLite() {
     );
   `);
 
+  await ensureColumn({ table: 'audit_logs', column: 'owner_session_id', definition: "TEXT NOT NULL DEFAULT ''", backend: 'sqlite' });
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_audit_logs_owner_job ON audit_logs(owner_session_id, job_id);`);
+
   console.log('[SQLite] Migration database schema initialized at:', config.dbPath);
 }
 
@@ -209,6 +236,7 @@ async function createSchemaPostgres() {
   await db.exec(`
     CREATE TABLE IF NOT EXISTS accounts (
       id TEXT PRIMARY KEY,
+      owner_session_id TEXT NOT NULL DEFAULT '',
       email TEXT NOT NULL,
       role TEXT NOT NULL,
       scopes TEXT NOT NULL,
@@ -217,10 +245,13 @@ async function createSchemaPostgres() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  await db.exec(`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS owner_session_id TEXT NOT NULL DEFAULT '';`);
+  await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_owner_role ON accounts(owner_session_id, role);`);
 
   await db.exec(`
     CREATE TABLE IF NOT EXISTS migration_jobs (
       id TEXT PRIMARY KEY,
+      owner_session_id TEXT NOT NULL DEFAULT '',
       service_type TEXT NOT NULL,
       migration_mode TEXT NOT NULL,
       source_email TEXT NOT NULL,
@@ -234,11 +265,14 @@ async function createSchemaPostgres() {
       completed_at TIMESTAMP
     );
   `);
+  await db.exec(`ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS owner_session_id TEXT NOT NULL DEFAULT '';`);
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_migration_jobs_owner ON migration_jobs(owner_session_id);`);
 
   await db.exec(`
     CREATE TABLE IF NOT EXISTS migration_items (
       id TEXT PRIMARY KEY,
       job_id TEXT NOT NULL REFERENCES migration_jobs(id),
+      owner_session_id TEXT NOT NULL DEFAULT '',
       source_item_id TEXT NOT NULL,
       source_name TEXT NOT NULL,
       mime_type TEXT,
@@ -256,18 +290,23 @@ async function createSchemaPostgres() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  await db.exec(`ALTER TABLE migration_items ADD COLUMN IF NOT EXISTS owner_session_id TEXT NOT NULL DEFAULT '';`);
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_migration_items_owner_job ON migration_items(owner_session_id, job_id);`);
 
   await db.exec(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id BIGSERIAL PRIMARY KEY,
       job_id TEXT,
       item_id TEXT,
+      owner_session_id TEXT NOT NULL DEFAULT '',
       level TEXT NOT NULL,
       event_type TEXT NOT NULL,
       message TEXT NOT NULL,
       timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  await db.exec(`ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS owner_session_id TEXT NOT NULL DEFAULT '';`);
+  await db.exec(`CREATE INDEX IF NOT EXISTS idx_audit_logs_owner_job ON audit_logs(owner_session_id, job_id);`);
 
   await db.exec(`ALTER TABLE migration_items ADD COLUMN IF NOT EXISTS fingerprint TEXT;`);
   console.log('[PostgreSQL] Migration schema initialized successfully');

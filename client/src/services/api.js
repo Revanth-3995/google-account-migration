@@ -1,16 +1,23 @@
-﻿export const api = {
+export const api = {
+  async request(url, options = {}) {
+    return fetch(url, {
+      credentials: 'include',
+      ...options
+    });
+  },
+
   async getConfig() {
-    const res = await fetch('/api/config');
+    const res = await this.request('/api/config');
     return res.json();
   },
 
   async getAccounts() {
-    const res = await fetch('/api/accounts');
+    const res = await this.request('/api/accounts');
     return res.json();
   },
 
   async saveAccount(account) {
-    const res = await fetch('/api/accounts', {
+    const res = await this.request('/api/accounts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(account)
@@ -19,12 +26,12 @@
   },
 
   async deleteAccount(id) {
-    const res = await fetch(`/api/accounts/${id}`, { method: 'DELETE' });
+    const res = await this.request(`/api/accounts/${id}`, { method: 'DELETE' });
     return res.json();
   },
 
   async discoverDriveManifest(rootFolderId, rootFolderName) {
-    const res = await fetch('/api/drive/manifest', {
+    const res = await this.request('/api/drive/manifest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rootFolderId, rootFolderName })
@@ -33,7 +40,7 @@
   },
 
   async createDriveJob(migrationMode, items) {
-    const res = await fetch('/api/drive/create-job', {
+    const res = await this.request('/api/drive/create-job', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ migrationMode, items })
@@ -42,27 +49,27 @@
   },
 
   async createPhotosSession() {
-    const res = await fetch('/api/photos/session', { method: 'POST' });
+    const res = await this.request('/api/photos/session', { method: 'POST' });
     return res.json();
   },
 
   async getPhotosSession(sessionId) {
-    const res = await fetch(`/api/photos/session/${sessionId}`);
+    const res = await this.request(`/api/photos/session/${sessionId}`);
     return res.json();
   },
 
   async getPhotosMediaItems(sessionId) {
-    const res = await fetch(`/api/photos/mediaItems/${sessionId}`);
+    const res = await this.request(`/api/photos/mediaItems/${sessionId}`);
     return res.json();
   },
 
   async deletePhotosSession(sessionId) {
-    const res = await fetch(`/api/photos/session/${sessionId}`, { method: 'DELETE' });
+    const res = await this.request(`/api/photos/session/${sessionId}`, { method: 'DELETE' });
     return res.json();
   },
 
   async resumeRecoveryPhotos(jobId, items) {
-    const res = await fetch('/api/photos/resume-recovery', {
+    const res = await this.request('/api/photos/resume-recovery', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId, items })
@@ -71,7 +78,7 @@
   },
 
   async createPhotosJob(items) {
-    const res = await fetch('/api/photos/jobs', {
+    const res = await this.request('/api/photos/jobs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items })
@@ -80,37 +87,37 @@
   },
 
   async getJobs() {
-    const res = await fetch('/api/jobs');
+    const res = await this.request('/api/jobs');
     return res.json();
   },
 
   async getJobDetails(id) {
-    const res = await fetch(`/api/jobs/${id}`);
+    const res = await this.request(`/api/jobs/${id}`);
     return res.json();
   },
 
   async retryJob(id) {
-    const res = await fetch(`/api/jobs/${id}/retry`, { method: 'POST' });
+    const res = await this.request(`/api/jobs/${id}/retry`, { method: 'POST' });
     return res.json();
   },
 
   async startJob(id) {
-    const res = await fetch(`/api/jobs/${id}/start`, { method: 'POST' });
+    const res = await this.request(`/api/jobs/${id}/start`, { method: 'POST' });
     return res.json();
   },
 
   async pauseJob(id) {
-    const res = await fetch(`/api/jobs/${id}/pause`, { method: 'POST' });
+    const res = await this.request(`/api/jobs/${id}/pause`, { method: 'POST' });
     return res.json();
   },
 
   async cancelJob(id) {
-    const res = await fetch(`/api/jobs/${id}/cancel`, { method: 'POST' });
+    const res = await this.request(`/api/jobs/${id}/cancel`, { method: 'POST' });
     return res.json();
   },
 
   async getAuditLogs(limit = 100) {
-    const res = await fetch(`/api/audit?limit=${limit}`);
+    const res = await this.request(`/api/audit?limit=${limit}`);
     return res.json();
   }
 };
