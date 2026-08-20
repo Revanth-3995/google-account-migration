@@ -105,10 +105,8 @@ export function getAccountLifetimeInfo(account, nowTick = Date.now()) {
 }
 
 export function validateStoredAccount(account) {
-  const tokenData = parseTokenData(account);
   if (!account) return false;
   if (account.has_token_data === false) return false;
-  if (!tokenData) return false;
 
   const expiry = getStoredTokenExpiry(account);
   if (expiry && expiry <= Date.now()) return false;
