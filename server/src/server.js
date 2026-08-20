@@ -6,15 +6,18 @@ import { config } from './config/index.js';
 import { initDatabase, getDatabaseBackend } from './db/database.js';
 import { apiRouter } from './routes/index.js';
 import { JobQueue } from './jobs/JobQueue.js';
+import { ensureOwnerSession } from './middleware/ownerSession.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.use(ensureOwnerSession);
 app.use(cors({
   origin: config.corsOrigin,
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
 

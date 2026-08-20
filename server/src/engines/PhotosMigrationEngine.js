@@ -14,6 +14,7 @@ export class PhotosMigrationEngine {
       return { success: true, skipped: true };
     }
 
+    const ownerSessionId = item.owner_session_id || '';
     const maxRetries = 3;
     let attempt = item.retry_count || 0;
 
@@ -28,11 +29,11 @@ export class PhotosMigrationEngine {
 
     while (attempt <= maxRetries) {
       try {
-        await ItemRepository.updateStatus(item.id, 'PROCESSING');
+        await ItemRepository.updateStatus(ownerSessionId, item.id, 'PROCESSING');
         EventBroadcaster.broadcast('ITEM_PROGRESS', { jobId: item.job_id, itemId: item.id, status: 'PROCESSING' });
 
         const mode = (process.env.PHOTOS_TRANSFER_MODE === 'buffer') ? 'BUFFER' : 'PIPE';
-        await AuditRepository.log({
+        await AuditRepository.log(ownerSessionId, {
           jobId: item.job_id,
           itemId: item.id,
           level: 'INFO',
@@ -61,10 +62,10 @@ export class PhotosMigrationEngine {
         if (firstResult.status && firstResult.status.message === 'Success') {
           const destMediaId = firstResult.mediaItem ? firstResult.mediaItem.id : 'created';
           // Immediately transactional update to VERIFIED
-          await ItemRepository.updateStatus(item.id, 'VERIFIED', { destItemId: destMediaId });
-          await JobRepository.incrementCompleted(item.job_id);
+          await ItemRepository.updateStatus(ownerSessionId, item.id, 'VERIFIED', { destItemId: destMediaId });
+          await JobRepository.incrementCompleted(ownerSessionId, item.job_id);
 
-          await AuditRepository.log({
+          await AuditRepository.log(ownerSessionId, {
             jobId: item.job_id,
             itemId: item.id,
             level: 'INFO',
@@ -81,18 +82,18 @@ export class PhotosMigrationEngine {
 
       } catch (err) {
         attempt++;
-        await ItemRepository.updateRetryCount(item.id, attempt);
+        await ItemRepository.updateRetryCount(ownerSessionId, item.id, attempt);
         
         // Error classification
         if (err.statusCode === 401) {
-          await ItemRepository.updateStatus(item.id, 'AUTH_REQUIRED', { errorMessage: err.message });
-          await AuditRepository.log({ jobId: item.job_id, itemId: item.id, level: 'ERROR', eventType: 'AUTH_REQUIRED', message: err.message });
+          await ItemRepository.updateStatus(ownerSessionId, item.id, 'AUTH_REQUIRED', { errorMessage: err.message });
+          await AuditRepository.log(ownerSessionId, { jobId: item.job_id, itemId: item.id, level: 'ERROR', eventType: 'AUTH_REQUIRED', message: err.message });
           return { success: false, errorType: 'AUTH_REQUIRED', error: err.message };
         }
 
         if (err.statusCode === 403 && err.source === 'SOURCE_DOWNLOAD') {
-          await ItemRepository.updateStatus(item.id, 'SOURCE_ACCESS_EXPIRED', { errorMessage: err.message });
-          await AuditRepository.log({ jobId: item.job_id, itemId: item.id, level: 'ERROR', eventType: 'SOURCE_ACCESS_EXPIRED', message: err.message });
+          await ItemRepository.updateStatus(ownerSessionId, item.id, 'SOURCE_ACCESS_EXPIRED', { errorMessage: err.message });
+          await AuditRepository.log(ownerSessionId, { jobId: item.job_id, itemId: item.id, level: 'ERROR', eventType: 'SOURCE_ACCESS_EXPIRED', message: err.message });
           return { success: false, errorType: 'SOURCE_ACCESS_EXPIRED', error: err.message };
         }
 
@@ -100,7 +101,7 @@ export class PhotosMigrationEngine {
 
         if ((isRateLimit || err.statusCode >= 500) && attempt <= maxRetries) {
           const backoff = attempt * 2500;
-          await AuditRepository.log({
+          await AuditRepository.log(ownerSessionId, {
             jobId: item.job_id,
             itemId: item.id,
             level: 'WARN',
@@ -112,10 +113,10 @@ export class PhotosMigrationEngine {
         }
 
         console.error(`Error migrating ${item.source_name}:`, err.message);
-        await ItemRepository.updateStatus(item.id, attempt > maxRetries ? 'FAILED' : 'FAILED_RETRYABLE', { errorMessage: err.message });
-        if (attempt > maxRetries) await JobRepository.incrementFailed(item.job_id);
+        await ItemRepository.updateStatus(ownerSessionId, item.id, attempt > maxRetries ? 'FAILED' : 'FAILED_RETRYABLE', { errorMessage: err.message });
+        if (attempt > maxRetries) await JobRepository.incrementFailed(ownerSessionId, item.job_id);
 
-        await AuditRepository.log({
+        await AuditRepository.log(ownerSessionId, {
           jobId: item.job_id,
           itemId: item.id,
           level: 'ERROR',

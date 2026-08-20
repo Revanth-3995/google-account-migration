@@ -1,5 +1,6 @@
-﻿import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { computeMigrationAuthState, getAccountLifetimeInfo } from '../utils/accountAuthState';
 
 const AppContext = createContext();
 
@@ -20,158 +21,18 @@ export function AppProvider({ children }) {
     checking: false
   });
 
-  const parseTokenData = (account) => {
-    if (!account || !account.token_data) return null;
-    try {
-      return typeof account.token_data === 'string' ? JSON.parse(account.token_data) : account.token_data;
-    } catch {
-      return null;
-    }
-  };
-
-  const normalizeTimestamp = (value) => {
-    if (!value) return null;
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
-  };
-
-  const getStoredTokenExpiry = (account) => {
-    const tokenData = parseTokenData(account);
-    if (!tokenData) return null;
-
-    if (typeof tokenData.expires_at === 'string') {
-      const explicitExpiry = normalizeTimestamp(tokenData.expires_at);
-      if (explicitExpiry) return explicitExpiry;
-    }
-
-    const expiresIn = typeof tokenData.expires_in === 'number' ? tokenData.expires_in : null;
-    if (expiresIn == null) return null;
-
-    const issuedAt = normalizeTimestamp(tokenData.issued_at)
-      || normalizeTimestamp(tokenData.saved_at)
-      || normalizeTimestamp(account && account.updated_at);
-
-    if (!issuedAt) return null;
-    return issuedAt + (expiresIn * 1000);
-  };
-
-  const getAccountLifetimeInfo = (account) => {
-    if (!account) {
-      return {
-        connected: false,
-        expiresAt: null,
-        remainingMs: null,
-        expired: false,
-        expiringSoon: false,
-        statusLabel: 'Not connected',
-        detailLabel: 'Not connected',
-        remainingLabel: 'Not connected'
-      };
-    }
-
-    const tokenData = parseTokenData(account);
-    const expiresIn = tokenData && typeof tokenData.expires_in === 'number' ? tokenData.expires_in : null;
-    const issuedAt = normalizeTimestamp(tokenData && (tokenData.issued_at || tokenData.saved_at))
-      || normalizeTimestamp(account.updated_at);
-
-    let expiresAt = null;
-    if (tokenData && typeof tokenData.expires_at === 'string') {
-      expiresAt = normalizeTimestamp(tokenData.expires_at);
-    }
-    if (!expiresAt && issuedAt && expiresIn != null) {
-      expiresAt = issuedAt + (expiresIn * 1000);
-    }
-
-    if (!expiresAt) {
-      return {
-        connected: true,
-        expiresAt: null,
-        remainingMs: null,
-        expired: false,
-        expiringSoon: false,
-        statusLabel: 'Connected',
-        detailLabel: 'Expiry information unavailable',
-        remainingLabel: 'Expiry information unavailable'
-      };
-    }
-
-    const remainingMs = expiresAt - nowTick;
-    const expired = remainingMs <= 0;
-    const expiringSoon = !expired && remainingMs <= 5 * 60 * 1000;
-    const remainingSeconds = Math.max(0, Math.floor(remainingMs / 1000));
-    const hours = Math.floor(remainingSeconds / 3600);
-    const minutes = Math.floor((remainingSeconds % 3600) / 60);
-    const seconds = remainingSeconds % 60;
-
-    let remainingLabel = 'Expiry information unavailable';
-    if (expired) {
-      remainingLabel = 'Expired';
-    } else if (hours > 0) {
-      remainingLabel = `${hours}h ${minutes}m remaining`;
-    } else if (minutes > 0) {
-      remainingLabel = `${minutes}m ${seconds}s remaining`;
-    } else {
-      remainingLabel = `${seconds}s remaining`;
-    }
-
-    return {
-      connected: true,
-      expiresAt,
-      remainingMs,
-      expired,
-      expiringSoon,
-      statusLabel: expired ? 'Expired' : 'Connected',
-      detailLabel: expired ? 'Authentication expired' : `Expires at ${new Date(expiresAt).toLocaleString()}`,
-      remainingLabel
-    };
-  };
-
-  const validateStoredAccount = async (account) => {
-    const tokenData = parseTokenData(account);
-    if (!account || !tokenData || !tokenData.access_token) return false;
-
-    const expiry = getStoredTokenExpiry(account);
-    if (expiry && expiry <= Date.now()) return false;
-
-    return true;
-  };
-
-  const refreshMigrationAuthState = async (accountsOverride = null) => {
-    const currentAccounts = accountsOverride || accounts;
-    const source = currentAccounts.find(a => a.id === 'source');
-    const destination = currentAccounts.find(a => a.id === 'destination');
-
-    setMigrationAuthState(prev => ({ ...prev, checking: true }));
-
-    const [sourceValid, destinationValid] = await Promise.all([
-      validateStoredAccount(source),
-      validateStoredAccount(destination)
-    ]);
-
-    let state = 'BOTH_REAUTH_REQUIRED';
-    if (sourceValid && destinationValid) state = 'READY';
-    else if (!sourceValid && !destinationValid) state = 'BOTH_REAUTH_REQUIRED';
-    else if (!sourceValid) state = 'A_REAUTH_REQUIRED';
-    else state = 'B_REAUTH_REQUIRED';
-
-    const nextState = {
-      sourceValid,
-      destinationValid,
-      ready: sourceValid && destinationValid,
-      state,
-      checking: false
-    };
-
+  const refreshMigrationAuthState = (accountsOverride = null) => {
+    const nextState = computeMigrationAuthState(accountsOverride || accounts);
     setMigrationAuthState(nextState);
     return nextState;
   };
 
   const ensureMigrationAccountsReady = async () => {
-    const latest = await refreshMigrationAuthState();
+    const latest = refreshMigrationAuthState();
     if (latest.ready) return true;
 
-    const hasSource = !!accounts.find(a => a.id === 'source');
-    const hasDestination = !!accounts.find(a => a.id === 'destination');
+    const hasSource = !!accounts.find(a => a.role === 'source');
+    const hasDestination = !!accounts.find(a => a.role === 'destination');
     const sourceOk = latest.sourceValid;
     const destinationOk = latest.destinationValid;
 
@@ -180,7 +41,7 @@ export function AppProvider({ children }) {
       if (!ok) return false;
     }
 
-    const afterSource = await refreshMigrationAuthState();
+    const afterSource = refreshMigrationAuthState();
     if (!afterSource.destinationValid) {
       if (hasDestination || sourceOk) {
         const ok = await promptLogin('destination');
@@ -191,9 +52,11 @@ export function AppProvider({ children }) {
       }
     }
 
-    const finalState = await refreshMigrationAuthState();
+    const finalState = refreshMigrationAuthState();
     return finalState.ready;
   };
+
+  const getAccountLifetimeInfoForTick = (account) => getAccountLifetimeInfo(account, nowTick);
 
   const refreshAccounts = async () => {
     try {
@@ -249,7 +112,6 @@ export function AppProvider({ children }) {
     };
   }, []);
 
-  // Universal 1-Click Authenticator / Token Refresher
   const promptLogin = async (role) => {
     let currentClientId = config.clientId;
     if (!currentClientId) {
@@ -286,7 +148,6 @@ export function AppProvider({ children }) {
           }
 
           let email = '';
-          // 1. Try Drive about API (works with drive.file scope)
           try {
             const driveAboutRes = await fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName)', {
               headers: { 'Authorization': 'Bearer ' + res.access_token }
@@ -299,7 +160,6 @@ export function AppProvider({ children }) {
             }
           } catch (e) {}
 
-          // 2. Fallback to userinfo API
           if (!email) {
             try {
               const userinfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -317,9 +177,8 @@ export function AppProvider({ children }) {
           }
 
           await api.saveAccount({
-            id: role,
             email: email,
-            role: role === 'source' ? 'Source Account A' : 'Destination Account B',
+            role: role,
             scopes: scope,
             tokenData: {
               access_token: res.access_token,
@@ -329,7 +188,7 @@ export function AppProvider({ children }) {
           });
 
           await refreshAccounts();
-          await refreshMigrationAuthState();
+          refreshMigrationAuthState();
           resolve(true);
         }
       });
@@ -338,10 +197,10 @@ export function AppProvider({ children }) {
     });
   };
 
-  const sourceAccount = accounts.find(a => a.id === 'source');
-  const destAccount = accounts.find(a => a.id === 'destination');
-  const sourceLifetime = getAccountLifetimeInfo(sourceAccount);
-  const destLifetime = getAccountLifetimeInfo(destAccount);
+  const sourceAccount = accounts.find(a => a.role === 'source');
+  const destAccount = accounts.find(a => a.role === 'destination');
+  const sourceLifetime = getAccountLifetimeInfoForTick(sourceAccount);
+  const destLifetime = getAccountLifetimeInfoForTick(destAccount);
 
   return (
     <AppContext.Provider value={{
@@ -351,7 +210,7 @@ export function AppProvider({ children }) {
       destAccount,
       sourceLifetime,
       destLifetime,
-      getAccountLifetimeInfo,
+      getAccountLifetimeInfo: getAccountLifetimeInfoForTick,
       refreshAccounts,
       promptLogin,
       refreshMigrationAuthState,
@@ -374,4 +233,3 @@ export function AppProvider({ children }) {
 export function useApp() {
   return useContext(AppContext);
 }
-

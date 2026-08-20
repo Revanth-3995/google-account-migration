@@ -7,9 +7,10 @@ import { EventBroadcaster } from '../utils/eventBroadcaster.js';
 export class DriveMigrationEngine {
   static async processItem(item, { sourceToken, destToken, destEmail, folderMap }) {
     const isFolder = item.item_type === 'FOLDER';
+    const ownerSessionId = item.owner_session_id || '';
 
     try {
-      await ItemRepository.updateStatus(item.id, 'PROCESSING');
+      await ItemRepository.updateStatus(ownerSessionId, item.id, 'PROCESSING');
       EventBroadcaster.broadcast('ITEM_PROGRESS', { jobId: item.job_id, itemId: item.id, status: 'PROCESSING' });
 
       const resolveParentId = () => {
@@ -26,7 +27,7 @@ export class DriveMigrationEngine {
 
       if (isFolder) {
         // Recreate directory in Account B
-        await AuditRepository.log({
+        await AuditRepository.log(ownerSessionId, {
           jobId: item.job_id,
           itemId: item.id,
           level: 'INFO',
@@ -40,10 +41,10 @@ export class DriveMigrationEngine {
           if (item.parent_path) {
             folderMap.set(item.parent_path, res.folder.id);
           }
-          await ItemRepository.updateDestParentId(item.id, targetParentId);
-          await ItemRepository.updateStatus(item.id, 'COMPLETED', { destItemId: res.folder.id });
-          await JobRepository.incrementCompleted(item.job_id);
-          await AuditRepository.log({
+          await ItemRepository.updateDestParentId(ownerSessionId, item.id, targetParentId);
+          await ItemRepository.updateStatus(ownerSessionId, item.id, 'COMPLETED', { destItemId: res.folder.id });
+          await JobRepository.incrementCompleted(ownerSessionId, item.job_id);
+          await AuditRepository.log(ownerSessionId, {
             jobId: item.job_id,
             itemId: item.id,
             level: 'INFO',
@@ -55,7 +56,7 @@ export class DriveMigrationEngine {
         }
       } else {
         // 1. Share source file with Account B
-        await AuditRepository.log({
+        await AuditRepository.log(ownerSessionId, {
           jobId: item.job_id,
           itemId: item.id,
           level: 'INFO',
@@ -69,7 +70,7 @@ export class DriveMigrationEngine {
         }
 
         // 2. Server-to-Server Copy into mapped destination parent
-        await AuditRepository.log({
+        await AuditRepository.log(ownerSessionId, {
           jobId: item.job_id,
           itemId: item.id,
           level: 'INFO',
@@ -79,10 +80,10 @@ export class DriveMigrationEngine {
 
         const copyRes = await DriveService.copyFile(item.source_item_id, item.source_name, targetParentId, destToken);
         if (copyRes.ok && copyRes.file) {
-          await ItemRepository.updateDestParentId(item.id, targetParentId);
-          await ItemRepository.updateStatus(item.id, 'COMPLETED', { destItemId: copyRes.file.id });
-          await JobRepository.incrementCompleted(item.job_id);
-          await AuditRepository.log({
+          await ItemRepository.updateDestParentId(ownerSessionId, item.id, targetParentId);
+          await ItemRepository.updateStatus(ownerSessionId, item.id, 'COMPLETED', { destItemId: copyRes.file.id });
+          await JobRepository.incrementCompleted(ownerSessionId, item.job_id);
+          await AuditRepository.log(ownerSessionId, {
             jobId: item.job_id,
             itemId: item.id,
             level: 'INFO',
@@ -99,9 +100,9 @@ export class DriveMigrationEngine {
 
     } catch (err) {
       console.error(`Error processing Drive item ${item.source_name}:`, err.message);
-      await ItemRepository.updateStatus(item.id, 'FAILED', { errorMessage: err.message });
-      await JobRepository.incrementFailed(item.job_id);
-      await AuditRepository.log({
+      await ItemRepository.updateStatus(ownerSessionId, item.id, 'FAILED', { errorMessage: err.message });
+      await JobRepository.incrementFailed(ownerSessionId, item.job_id);
+      await AuditRepository.log(ownerSessionId, {
         jobId: item.job_id,
         itemId: item.id,
         level: 'ERROR',

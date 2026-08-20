@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { PhotosService } from '../services/photos/PhotosService.js';
 import { AuthService } from '../services/auth/AuthService.js';
 import { JobRepository } from '../repositories/JobRepository.js';
@@ -9,7 +10,7 @@ import { buildPhotoFingerprint } from '../utils/fingerprintUtils.js';
 export const PhotosController = {
   async createSession(req, res) {
     try {
-      const sourceToken = await AuthService.getSourceToken();
+      const sourceToken = await AuthService.getSourceToken(req.ownerSessionId);
       if (!sourceToken) return res.status(401).json({ error: 'Source account not connected' });
 
       const result = await PhotosService.createSession(sourceToken);
@@ -21,7 +22,7 @@ export const PhotosController = {
 
   async getSession(req, res) {
     try {
-      const sourceToken = await AuthService.getSourceToken();
+      const sourceToken = await AuthService.getSourceToken(req.ownerSessionId);
       const result = await PhotosService.getSession(req.params.id, sourceToken);
       res.status(result.statusCode).json(result.data || result.raw);
     } catch (e) {
@@ -31,7 +32,7 @@ export const PhotosController = {
 
   async getMediaItems(req, res) {
     try {
-      const sourceToken = await AuthService.getSourceToken();
+      const sourceToken = await AuthService.getSourceToken(req.ownerSessionId);
       const result = await PhotosService.getMediaItems(req.params.id, sourceToken);
       res.status(result.statusCode).json(result.data || result.raw);
     } catch (e) {
@@ -41,7 +42,7 @@ export const PhotosController = {
 
   async deleteSession(req, res) {
     try {
-      const sourceToken = await AuthService.getSourceToken();
+      const sourceToken = await AuthService.getSourceToken(req.ownerSessionId);
       const result = await PhotosService.deleteSession(req.params.id, sourceToken);
       res.status(result.statusCode).json({ success: true });
     } catch (e) {
@@ -60,13 +61,13 @@ export const PhotosController = {
       }
 
       // Verify job exists and is actually in a recoverable state
-      const job = await JobRepository.get(jobId);
+      const job = await JobRepository.get(req.ownerSessionId, jobId);
       if (!job) return res.status(404).json({ error: 'Job not found' });
       if (job.status !== 'RECOVERY_REQUIRED' && job.status !== 'PAUSED') {
         return res.status(400).json({ error: 'Job is not in a recoverable state. Current status: ' + job.status });
       }
 
-      const allItems = await ItemRepository.getByJobId(jobId);
+      const allItems = await ItemRepository.getByJobId(req.ownerSessionId, jobId);
       const verifiedItems = allItems.filter(i => i.status === 'VERIFIED' || i.status === 'COMPLETED');
       // All items that still need source access refreshed
       const unfinishedItems = allItems.filter(i => i.status !== 'VERIFIED' && i.status !== 'COMPLETED');
@@ -124,9 +125,9 @@ export const PhotosController = {
       // Apply DB updates for safe matches
       if (pendingUpdates.length > 0) {
         const { db } = await import('../db/database.js');
-        const updateStmt = db.prepare('UPDATE migration_items SET source_item_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+        const updateStmt = db.prepare('UPDATE migration_items SET source_item_id = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE owner_session_id = ? AND id = ?');
         for (const upd of pendingUpdates) {
-          await updateStmt.run(upd.newBaseUrl, 'PENDING', upd.id);
+          await updateStmt.run(upd.newBaseUrl, 'PENDING', req.ownerSessionId, upd.id);
         }
       }
 
@@ -134,11 +135,11 @@ export const PhotosController = {
 
       if (canResume) {
         // Only now is it safe to resume
-        await AuditRepository.log({ jobId, level: 'INFO', eventType: 'RECOVERY_RESUME', message: logMsg });
+        await AuditRepository.log(req.ownerSessionId, { jobId, level: 'INFO', eventType: 'RECOVERY_RESUME', message: logMsg });
         // Dynamically import to avoid any circular dependency issues
-        import('../jobs/JobQueue.js').then(jq => jq.JobQueue.startJob(jobId, true));
+        import('../jobs/JobQueue.js').then(jq => jq.JobQueue.startJob(req.ownerSessionId, jobId, true));
       } else {
-        await AuditRepository.log({ jobId, level: 'WARN', eventType: 'RECOVERY_INCOMPLETE', message: logMsg });
+        await AuditRepository.log(req.ownerSessionId, { jobId, level: 'WARN', eventType: 'RECOVERY_INCOMPLETE', message: logMsg });
       }
 
       res.json({
@@ -173,15 +174,15 @@ export const PhotosController = {
       });
 
       const accounts = await import('../repositories/AccountRepository.js');
-      const src = await accounts.AccountRepository.get('source');
-      const dst = await accounts.AccountRepository.get('destination');
+      const src = await accounts.AccountRepository.getByRole(req.ownerSessionId, 'source');
+      const dst = await accounts.AccountRepository.getByRole(req.ownerSessionId, 'destination');
 
       if (!src || !dst) {
         return res.status(400).json({ error: 'Both Source and Destination accounts must be connected.' });
       }
 
-      const jobId = 'photos_' + Date.now();
-      await JobRepository.create({
+      const jobId = 'photos_' + crypto.randomUUID();
+      await JobRepository.create(req.ownerSessionId, {
         id: jobId,
         serviceType: 'PHOTOS',
         migrationMode: 'IN_MEMORY_STREAM',
@@ -217,9 +218,9 @@ export const PhotosController = {
         };
       });
 
-      await ItemRepository.createBatch(dbItems);
+      await ItemRepository.createBatch(req.ownerSessionId, dbItems);
 
-      await AuditRepository.log({
+      await AuditRepository.log(req.ownerSessionId, {
         jobId,
         level: 'INFO',
         eventType: 'JOB_CREATE',
