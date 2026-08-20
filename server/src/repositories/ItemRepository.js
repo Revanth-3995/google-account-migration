@@ -1,7 +1,7 @@
 ﻿import { db } from '../db/database.js';
 
 export class ItemRepository {
-  static createBatch(items) {
+  static async createBatch(items) {
     const stmt = db.prepare(`
       INSERT INTO migration_items (
         id, job_id, source_item_id, source_name, mime_type, size_bytes, item_type,
@@ -28,28 +28,33 @@ export class ItemRepository {
     }
   }
 
-  static getByJobId(jobId) {
+  static async getByJobId(jobId) {
     const stmt = db.prepare('SELECT * FROM migration_items WHERE job_id = ? ORDER BY created_at ASC');
-    return stmt.all(jobId);
+    return await stmt.all(jobId);
   }
 
-  static getPendingItems(jobId) {
+  static async getPendingItems(jobId) {
     const stmt = db.prepare("SELECT * FROM migration_items WHERE job_id = ? AND status NOT IN ('COMPLETED','VERIFIED') ORDER BY created_at ASC");
-    return stmt.all(jobId);
+    return await stmt.all(jobId);
   }
 
-  static updateStatus(id, status, { destItemId, errorMessage } = {}) {
+  static async updateStatus(id, status, { destItemId, errorMessage } = {}) {
     const stmt = db.prepare(`
       UPDATE migration_items
       SET status = ?, dest_item_id = COALESCE(?, dest_item_id), error_message = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `);
-    return stmt.run(status, destItemId || null, errorMessage || null, id);
+    return await stmt.run(status, destItemId || null, errorMessage || null, id);
   }
 
-  static updateDestParentId(id, destParentId) {
+  static async updateDestParentId(id, destParentId) {
     const stmt = db.prepare('UPDATE migration_items SET dest_parent_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
-    return stmt.run(destParentId, id);
+    return await stmt.run(destParentId, id);
+  }
+
+  static async updateRetryCount(id, retryCount) {
+    const stmt = db.prepare('UPDATE migration_items SET retry_count = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+    return await stmt.run(retryCount, id);
   }
 }
 

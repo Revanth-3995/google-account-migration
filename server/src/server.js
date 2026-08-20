@@ -3,18 +3,12 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from './config/index.js';
-import { initDatabase } from './db/database.js';
+import { initDatabase, getDatabaseBackend } from './db/database.js';
 import { apiRouter } from './routes/index.js';
 import { JobQueue } from './jobs/JobQueue.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Initialize SQLite Schema
-initDatabase();
-
-// Initialize Application Startup Recovery
-JobQueue.init();
 
 const app = express();
 app.use(cors({
@@ -46,7 +40,18 @@ if (process.env.SERVE_CLIENT_DIST === '1') {
   });
 }
 
-app.listen(config.port, () => {
-  console.log(`[Server] Google Account Migration API running at http://localhost:${config.port}`);
+async function start() {
+  await initDatabase();
+  console.log(`[Server] Database backend active: ${getDatabaseBackend()}`);
+  await JobQueue.init();
+
+  app.listen(config.port, () => {
+    console.log(`[Server] Google Account Migration API running at http://localhost:${config.port}`);
+  });
+}
+
+start().catch(err => {
+  console.error('[Server] Fatal startup error:', err.message);
+  process.exit(1);
 });
 

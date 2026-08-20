@@ -1,4 +1,5 @@
-﻿import fs from 'fs';
+import 'dotenv/config';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -62,6 +63,7 @@ function loadCredentials() {
       }
     }
   }
+
   return {
     clientId: '',
     projectId: envProjectId,
@@ -74,7 +76,10 @@ function loadCredentials() {
 
 export const config = {
   port: process.env.PORT || 3000,
+  databaseType: (process.env.DATABASE_TYPE || 'sqlite').toLowerCase(),
   dbPath: process.env.DATABASE_PATH || path.join(SERVER_DIR, 'data/migration.db'),
+  databaseUrl: process.env.DATABASE_URL || '',
+  databaseSsl: process.env.DATABASE_SSL || '',
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   corsOrigin: process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:3000',
   google: loadCredentials(),

@@ -9,7 +9,10 @@
     "dev": "node --watch src/server.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^4.21.2",
-    "cors": "^2.8.5"
+    "google-account-migration-monorepo": "file:..",
+    "pg": "^8.13.0"
   }
 }

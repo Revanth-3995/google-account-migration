@@ -4,22 +4,22 @@ import { AuditRepository } from '../repositories/AuditRepository.js';
 import { JobQueue } from '../jobs/JobQueue.js';
 
 export const JobController = {
-  getAllJobs(req, res) {
+  async getAllJobs(req, res) {
     try {
-      const jobs = JobRepository.getAll();
+      const jobs = await JobRepository.getAll();
       res.json(jobs);
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
   },
 
-  getJobDetails(req, res) {
+  async getJobDetails(req, res) {
     try {
       const { id } = req.params;
-      const job = JobRepository.get(id);
+      const job = await JobRepository.get(id);
       if (!job) return res.status(404).json({ error: 'Job not found' });
-      const items = ItemRepository.getByJobId(id);
-      const audit = AuditRepository.getByJobId(id);
+      const items = await ItemRepository.getByJobId(id);
+      const audit = await AuditRepository.getByJobId(id);
       res.json({ job, items, audit });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -46,20 +46,20 @@ export const JobController = {
     }
   },
 
-  pauseJob(req, res) {
+  async pauseJob(req, res) {
     try {
       const { id } = req.params;
-      JobQueue.pauseJob(id);
+      await JobQueue.pauseJob(id);
       res.json({ success: true, status: 'PAUSED' });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
   },
 
-  cancelJob(req, res) {
+  async cancelJob(req, res) {
     try {
       const { id } = req.params;
-      JobQueue.cancelJob(id);
+      await JobQueue.cancelJob(id);
       res.json({ success: true, status: 'CANCELLED' });
     } catch (e) {
       res.status(500).json({ error: e.message });

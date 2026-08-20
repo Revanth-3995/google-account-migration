@@ -10,6 +10,7 @@ A local, privacy-first storage manager and rebalancing application for personal 
 * **Strict Least-Privilege Scopes:** No restricted scopes (`drive`, `photoslibrary.readonly`, etc.).
 * **Safety:** Non-destructive migration (never deletes source files).
 * **Localhost Control Plane:** Node.js Express backend, SQLite local database, React + Vite frontend.
+* **Production Database:** PostgreSQL via `DATABASE_TYPE=postgres` and `DATABASE_URL` for deployed environments.
 
 ---
 
@@ -37,7 +38,8 @@ Recommended environment variables:
 ```bash
 NODE_ENV=production
 PORT=3000
-DATABASE_PATH=/var/data/migration.db
+DATABASE_TYPE=postgres
+DATABASE_URL=postgres://user:password@host:5432/database
 FRONTEND_URL=https://your-beta-domain.example
 CORS_ORIGIN=https://your-beta-domain.example
 GOOGLE_CLIENT_ID=...
@@ -48,7 +50,7 @@ SERVE_CLIENT_DIST=1
 ```
 
 Deployment notes:
-- Use persistent disk storage for the SQLite database.
+- Use PostgreSQL for production persistence; SQLite remains for local development only.
 - Do not commit `credentials.json`, `picker-config.json`, or the database file.
 - Keep diagnostics flags off unless explicitly testing:
   - `PHOTOS_TRANSFER_DIAGNOSTICS=0`
@@ -69,10 +71,10 @@ google-account-migration/
 │   │   └── services/            # Frontend API client
 │   └── package.json
 │
-├── server/                      # Express + SQLite backend
+├── server/                      # Express backend with SQLite/PostgreSQL support
 │   ├── src/
 │   │   ├── config/              # Credentials loader
-│   │   ├── db/                  # SQLite schema initialization (node:sqlite)
+│   │   ├── db/                  # Database abstraction + schema initialization
 │   │   ├── repositories/        # Account, Job, Item, Audit repositories
 │   │   ├── services/            # Auth, Drive, Photos services
 │   │   ├── engines/             # DriveMigrationEngine & PhotosMigrationEngine

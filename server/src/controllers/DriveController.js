@@ -9,7 +9,7 @@ export const DriveController = {
   async discoverManifest(req, res) {
     try {
       const { rootFolderId, rootFolderName } = req.body;
-      const sourceToken = AuthService.getSourceToken();
+      const sourceToken = await AuthService.getSourceToken();
       if (!sourceToken) {
         return res.status(401).json({ error: 'Source account not connected' });
       }
@@ -78,18 +78,16 @@ export const DriveController = {
         if (pathA !== pathB) return pathA.localeCompare(pathB);
         return (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' });
       });
-      const sourceAcc = AuthService.getSourceToken();
-      const destAcc = AuthService.getDestToken();
       const accounts = await import('../repositories/AccountRepository.js');
-      const src = accounts.AccountRepository.get('source');
-      const dst = accounts.AccountRepository.get('destination');
+      const src = await accounts.AccountRepository.get('source');
+      const dst = await accounts.AccountRepository.get('destination');
 
       if (!src || !dst) {
         return res.status(400).json({ error: 'Both Source and Destination accounts must be connected.' });
       }
 
       const jobId = 'drive_' + Date.now();
-      JobRepository.create({
+      await JobRepository.create({
         id: jobId,
         serviceType: 'DRIVE',
         migrationMode: migrationMode || 'HIERARCHY',
@@ -114,9 +112,9 @@ export const DriveController = {
         status: 'PENDING'
       }));
 
-      ItemRepository.createBatch(dbItems);
+      await ItemRepository.createBatch(dbItems);
 
-      AuditRepository.log({
+      await AuditRepository.log({
         jobId,
         level: 'INFO',
         eventType: 'JOB_CREATE',
