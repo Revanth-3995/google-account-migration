@@ -1,0 +1,10 @@
+{
+  "name": "photos-poc2-destination-upload",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "PHOTOS-POC-2: Source A In-Memory Relay to Destination Account B Upload Feasibility",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  }
+}

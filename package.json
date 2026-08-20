@@ -1,0 +1,12 @@
+{
+  "name": "google-account-migration-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Unified Google Account Migration Tool (Drive & Photos)",
+  "scripts": {
+    "server": "npm --prefix server start",
+    "client": "npm --prefix client dev",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client dev"
+  }
+}

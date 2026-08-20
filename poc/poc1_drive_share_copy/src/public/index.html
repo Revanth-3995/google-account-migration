@@ -1,0 +1,726 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POC-1: Drive Picker + Share + Copy Scope Test</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #10b981;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --font: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.5;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+
+    h1 { font-size: 1.5rem; color: #fff; margin-bottom: 6px; }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      background-color: rgba(59, 130, 246, 0.2);
+      color: var(--primary);
+      border: 1px solid var(--primary);
+    }
+
+    .scope-banner {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid var(--warning);
+      color: #fef08a;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 0.875rem;
+    }
+
+    .config-card {
+      background: #111827;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .config-item {
+      color: var(--text-muted);
+    }
+    .config-item strong { color: #fff; }
+
+    .setup-alert {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid var(--error);
+      color: #fca5a5;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 0.875rem;
+    }
+    .setup-alert ul { margin-left: 20px; margin-top: 6px; }
+
+    .step-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 20px;
+      margin-bottom: 16px;
+      transition: border-color 0.2s;
+    }
+
+    .step-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .step-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #334155;
+      color: #fff;
+      font-size: 0.8rem;
+    }
+
+    .status-tag {
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .status-tag.connected {
+      border-color: var(--success);
+      color: var(--success);
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    .step-desc {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-bottom: 14px;
+    }
+
+    button {
+      background-color: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+
+    button:hover:not(:disabled) {
+      background-color: var(--primary-hover);
+    }
+
+    button:disabled {
+      background-color: #334155;
+      color: #64748b;
+      cursor: not-allowed;
+    }
+
+    .log-panel {
+      margin-top: 24px;
+      background: #090d16;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .log-header {
+      background: #111827;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    pre {
+      padding: 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.8rem;
+      color: #a7f3d0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+  </style>
+
+  <!-- Google Identity Services (GIS) Library -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- Google API Client Library (for Google Picker only) -->
+  <script src="https://apis.google.com/js/api.js" async defer></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <span class="badge">Local POC-1 Test Runner</span>
+      <h1 style="margin-top: 8px;">POC-1: Drive Picker + Share + Copy</h1>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">
+        Testing personal-to-personal Drive migration using Google Identity Services (GIS) Token Model and Google Picker under candidate drive.file scope.
+      </p>
+    </header>
+
+    <div class="scope-banner">
+      <strong>Restricted Scope Guardrail Active:</strong> Only requesting <code>https://www.googleapis.com/auth/drive.file</code>. No client secret required or used.
+    </div>
+
+    <!-- Setup Requirement Alert Box -->
+    <div id="setup-alert" class="setup-alert" style="display: none;">
+      <strong>Local Configuration Required:</strong>
+      <ul id="setup-alert-list"></ul>
+    </div>
+
+    <!-- Active Environment Config Display -->
+    <div class="config-card">
+      <div style="font-weight: 600; color: #fff; margin-bottom: 4px;">Detected Configuration Files</div>
+      <div class="config-grid">
+        <div class="config-item"><code>credentials.json</code>: <strong id="cfg-client-id">Checking...</strong></div>
+        <div class="config-item"><code>picker-config.json</code>: <strong id="cfg-api-key">Checking...</strong></div>
+      </div>
+    </div>
+
+    <!-- Step 1: Account A Auth -->
+    <div class="step-card" id="card-step-1">
+      <div class="step-header">
+        <div class="step-title">
+          <span class="step-num">1</span>
+          <span>Authenticate Account A (Source)</span>
+        </div>
+        <span class="status-tag" id="status-a">Not Connected</span>
+      </div>
+      <div class="step-desc">
+        Opens Google OAuth popup for Account A requesting only <code>https://www.googleapis.com/auth/drive.file</code>.
+      </div>
+      <button onclick="authAccountA()" id="btn-auth-a">Connect Account A</button>
+    </div>
+
+    <!-- Step 2: Explicit File Selection via Google Picker -->
+    <div class="step-card" id="card-step-2">
+      <div class="step-header">
+        <div class="step-title">
+          <span class="step-num">2</span>
+          <span>Explicit File Selection (Google Drive Picker)</span>
+        </div>
+        <span class="status-tag" id="status-picker">No File Selected</span>
+      </div>
+      <div class="step-desc">
+        Opens Google's native file picker modal. Select one or more test files or folders.
+      </div>
+      <button onclick="openGooglePicker()" id="btn-picker" disabled>Open Google Drive Picker</button>
+      <div id="selected-file-info" style="margin-top: 10px; font-size: 0.85rem; color: #60a5fa; display: none;"></div>
+    </div>
+
+    <!-- Step 3: Verify Selected File Access -->
+    <div class="step-card" id="card-step-3">
+      <div class="step-header">
+        <div class="step-title">
+          <span class="step-num">3</span>
+          <span>Verify Selected File Metadata (Account A)</span>
+        </div>
+        <span class="status-tag" id="status-step-3" style="display:none;"></span>
+      </div>
+      <div class="step-desc">
+        Directly calls Drive REST API <code>files.get</code> using Account A's token to read metadata for the selected files.
+      </div>
+      <button onclick="verifySelectedFile()" id="btn-verify-a" disabled>Verify File Metadata</button>
+      <div id="step-3-info" style="margin-top: 10px; font-size: 0.85rem; color: #10b981; display: none;"></div>
+    </div>
+
+    <!-- Step 4: Share with Account B -->
+    <div class="step-card" id="card-step-4">
+      <div class="step-header">
+        <div class="step-title">
+          <span class="step-num">4</span>
+          <span>Share File with Account B</span>
+        </div>
+      </div>
+      <div class="step-desc">
+        Calls Drive REST API <code>permissions.create</code> with <code>role: 'reader'</code> using Account A's authorization.
+      </div>
+      <div style="margin-bottom: 12px;">
+        <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Account B Email Address:</label>
+        <input type="email" id="input-account-b-email" placeholder="test_account_b@gmail.com" style="width: 100%; max-width: 320px; padding: 6px 10px; background: #0f172a; border: 1px solid var(--border); color: #fff; border-radius: 4px; font-size: 0.875rem;">
+      </div>
+      <button onclick="shareWithAccountB()" id="btn-share" disabled>Execute Share (permissions.create)</button>
+    </div>
+
+    <!-- Step 5: Account B Auth -->
+    <div class="step-card" id="card-step-5">
+      <div class="step-header">
+        <div class="step-title">
+          <span class="step-num">5</span>
+          <span>Authenticate Account B (Destination)</span>
+        </div>
+        <span class="status-tag" id="status-b">Not Connected</span>
+      </div>
+      <div class="step-desc">
+        Opens Google OAuth popup for Account B requesting only <code>https://www.googleapis.com/auth/drive.file</code>.
+      </div>
+      <button onclick="authAccountB()" id="btn-auth-b">Connect Account B</button>
+    </div>
+
+    <!-- Step 6: Copy File into Account B's Drive -->
+    <div class="step-card" id="card-step-6">
+      <div class="step-header">
+        <div class="step-title">
+          <span class="step-num">6</span>
+          <span>Copy Shared File as Account B</span>
+        </div>
+      </div>
+      <div class="step-desc">
+        Calls Drive REST API <code>files.copy</code> using Account B's authorization on the shared file IDs.
+      </div>
+      <button onclick="copyFileAsAccountB()" id="btn-copy" disabled>Execute Copy (files.copy)</button>
+    </div>
+
+    <!-- Step 7: Verify Resulting Copy Ownership -->
+    <div class="step-card" id="card-step-7">
+      <div class="step-header">
+        <div class="step-title">
+          <span class="step-num">7</span>
+          <span>Verify Resulting Copy Ownership</span>
+        </div>
+      </div>
+      <div class="step-desc">
+        Calls Drive REST API <code>files.get</code> on the newly created copy IDs to confirm that Account B is the owner.
+      </div>
+      <button onclick="verifyCopyOwnership()" id="btn-verify-copy" disabled>Verify Copy Ownership</button>
+    </div>
+
+    <!-- Reset In-Memory State -->
+    <div style="margin-top: 16px; text-align: right;">
+      <button onclick="resetHarness()" style="background-color: #ef4444;">Reset In-Memory State</button>
+    </div>
+
+    <!-- Live Execution & Evidence Log -->
+    <div class="log-panel">
+      <div class="log-header">
+        <span style="font-weight: 600; font-size: 0.9rem;">Live Execution Log & Evidence Output</span>
+        <button onclick="clearLog()" style="background-color: #334155; padding: 4px 10px; font-size: 0.75rem;">Clear Log</button>
+      </div>
+      <pre id="log-output">// POC-1 Client Log ready. Requests and responses will appear here...</pre>
+    </div>
+  </div>
+
+  <script>
+    const SCOPE = 'https://www.googleapis.com/auth/drive.file';
+
+    let config = { clientId: '', apiKey: '', setupErrors: [] };
+    let tokenA = null;
+    let tokenB = null;
+    let selectedFiles = [];
+    let copiedFiles = [];
+    let pickerApiLoaded = false;
+
+    function log(title, data) {
+      const output = document.getElementById('log-output');
+      const timestamp = new Date().toISOString().substring(11, 19);
+      const entry = `\n[${timestamp}] === ${title} ===\n` + (typeof data === 'string' ? data : JSON.stringify(data, null, 2)) + '\n';
+      output.textContent += entry;
+      output.scrollTop = output.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('log-output').textContent = '// Log cleared.\n';
+    }
+
+    // Load configuration from local server
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/config');
+        config = await res.json();
+
+        const alertDiv = document.getElementById('setup-alert');
+        const alertList = document.getElementById('setup-alert-list');
+
+        if (config.setupErrors && config.setupErrors.length > 0) {
+          alertList.innerHTML = '';
+          config.setupErrors.forEach(err => {
+            const li = document.createElement('li');
+            li.textContent = err;
+            alertList.appendChild(li);
+          });
+          alertDiv.style.display = 'block';
+        } else {
+          alertDiv.style.display = 'none';
+        }
+
+        document.getElementById('cfg-client-id').textContent = config.clientId ? `${config.clientId.substring(0, 16)}...` : 'Missing (credentials.json)';
+        document.getElementById('cfg-api-key').textContent = config.apiKey ? `${config.apiKey.substring(0, 8)}...` : 'Missing (picker-config.json)';
+      } catch (err) {
+        log('Config Error', err.message);
+      }
+    }
+
+    // Initialize Google Picker JS API
+    function onGapiLoad() {
+      gapi.load('picker', {
+        callback: () => {
+          pickerApiLoaded = true;
+          log('Google Picker API', 'Picker JS library loaded successfully.');
+        }
+      });
+    }
+
+    // Step 1: Authenticate Account A using Google Identity Services (GIS) Token Client
+    function authAccountA() {
+      if (!config.clientId) {
+        alert('Please save credentials.json in the harness directory first.');
+        return;
+      }
+      try {
+        const tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: config.clientId,
+          scope: SCOPE,
+          prompt: 'select_account',
+          callback: (response) => {
+            if (response.error) {
+              log('Step 1 Auth Error (Account A)', response);
+              return;
+            }
+            tokenA = response.access_token;
+            sessionStorage.setItem('poc_tokenA', tokenA);
+            document.getElementById('status-a').textContent = 'Connected (drive.file)';
+            document.getElementById('status-a').className = 'status-tag connected';
+            document.getElementById('btn-picker').disabled = false;
+            log('Step 1 Success (Account A)', {
+              status: 'Authenticated',
+              scope: response.scope,
+              expires_in: response.expires_in
+            });
+          }
+        });
+        tokenClient.requestAccessToken();
+      } catch (err) {
+        log('GIS Error (Account A)', err.message);
+      }
+    }
+
+    // Step 2: Open Google Drive Picker
+    function openGooglePicker() {
+      if (!tokenA) {
+        alert('Account A must be authenticated first.');
+        return;
+      }
+      if (!config.apiKey) {
+        alert('Please create picker-config.json with your API Key first.');
+        return;
+      }
+
+      try {
+        const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
+          .setIncludeFolders(true)
+          .setSelectFolderEnabled(true);
+
+        const appId = config.clientId ? config.clientId.split('-')[0] : '';
+        const picker = new google.picker.PickerBuilder()
+          .addView(view)
+          .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+          .setOAuthToken(tokenA)
+          .setDeveloperKey(config.apiKey)
+          .setAppId(appId)
+          .setOrigin(window.location.protocol + '//' + window.location.host)
+          .setCallback((data) => {
+            if (data[google.picker.Response.ACTION] === google.picker.Action.PICKED) {
+              const docs = data[google.picker.Response.DOCUMENTS] || [];
+              selectedFiles = docs.map(doc => ({
+                fileId: doc[google.picker.Document.ID],
+                name: doc[google.picker.Document.NAME],
+                mimeType: doc[google.picker.Document.MIME_TYPE]
+              }));
+              
+              document.getElementById('status-picker').textContent = `Selected: ${selectedFiles.length} item(s)`;
+              document.getElementById('status-picker').className = 'status-tag connected';
+              const infoDiv = document.getElementById('selected-file-info');
+              infoDiv.innerHTML = selectedFiles.map((f, i) => `<div>${i+1}. <strong>${f.name}</strong> (${f.mimeType.split('.').pop()}) <code style="color:#94a3b8">${f.fileId}</code></div>`).join('');
+              infoDiv.style.display = 'block';
+
+              document.getElementById('btn-verify-a').disabled = false;
+              document.getElementById('btn-share').disabled = false;
+              if (tokenB) {
+                document.getElementById('btn-copy').disabled = false;
+              }
+              log(`Step 2: ${selectedFiles.length} File(s) Selected via Picker`, selectedFiles);
+            }
+          })
+          .build();
+
+        picker.setVisible(true);
+      } catch (err) {
+        log('Picker Error', err.message);
+      }
+    }
+
+    // Step 3: Verify Selected File Access via direct Drive REST API
+    async function verifySelectedFile() {
+      if (!tokenA || selectedFiles.length === 0) return;
+      const btn = document.getElementById("btn-verify-a");
+      const statusTag = document.getElementById("status-step-3");
+      const infoDiv = document.getElementById("step-3-info");
+      btn.textContent = "Verifying...";
+      try {
+        let verifiedCount = 0;
+        let details = [];
+        for (const file of selectedFiles) {
+          log(`Step 3: Verifying [${file.name}]...`, `GET https://www.googleapis.com/drive/v3/files/${file.fileId}`);
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.fileId}?fields=id,name,mimeType,owners,shared,capabilities,size`, {
+            headers: { "Authorization": `Bearer ${tokenA}` }
+          });
+          const data = await res.json();
+          if (res.ok) {
+            verifiedCount++;
+            details.push(`${file.name}: ${data.size || '0'} bytes, Owner: ${data.owners?.[0]?.emailAddress || 'me'}`);
+          }
+          log(`Step 3 Result: [${file.name}]`, { httpStatus: res.status, data });
+        }
+        btn.textContent = "Verify File Metadata";
+        statusTag.textContent = `Verified ${verifiedCount}/${selectedFiles.length} items`;
+        statusTag.className = "status-tag connected";
+        statusTag.style.display = "inline-block";
+        infoDiv.innerHTML = details.map(d => `<div>✓ ${d}</div>`).join('');
+        infoDiv.style.display = "block";
+      } catch (err) {
+        btn.textContent = "Verify File Metadata";
+        log("Step 3 Error", err.message);
+      }
+    }
+
+    // Step 4: Share with Account B via direct Drive REST API
+    async function shareWithAccountB() {
+      if (!tokenA || selectedFiles.length === 0) return;
+      const targetEmail = document.getElementById("input-account-b-email").value.trim();
+      if (!targetEmail) {
+        alert("Please enter Account B email address.");
+        return;
+      }
+      const btn = document.getElementById("btn-share");
+      btn.textContent = "Sharing...";
+      try {
+        let sharedCount = 0;
+        for (const file of selectedFiles) {
+          log(`Step 4: Sharing [${file.name}] with Account B...`, `POST https://www.googleapis.com/drive/v3/files/${file.fileId}/permissions`);
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.fileId}/permissions?fields=id,type,role,emailAddress`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${tokenA}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              role: "reader",
+              type: "user",
+              emailAddress: targetEmail
+            })
+          });
+          const data = await res.json();
+          if (res.ok) sharedCount++;
+          log(`Step 4 Result: [${file.name}]`, { httpStatus: res.status, data });
+        }
+        btn.style.backgroundColor = "#10b981";
+        btn.textContent = `Shared ${sharedCount}/${selectedFiles.length} item(s) with ${targetEmail}`;
+      } catch (err) {
+        btn.textContent = "Execute Share (permissions.create)";
+        log("Step 4 Error", err.message);
+      }
+    }
+
+    // Step 5: Authenticate Account B using Google Identity Services (GIS) Token Client
+    function authAccountB() {
+      if (!config.clientId) {
+        alert('Please save credentials.json in the harness directory first.');
+        return;
+      }
+      try {
+        const tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: config.clientId,
+          scope: SCOPE,
+          prompt: 'select_account',
+          callback: (response) => {
+            if (response.error) {
+              log('Step 5 Auth Error (Account B)', response);
+              return;
+            }
+            tokenB = response.access_token;
+            sessionStorage.setItem('poc_tokenB', tokenB);
+            document.getElementById('status-b').textContent = 'Connected (drive.file)';
+            document.getElementById('status-b').className = 'status-tag connected';
+            if (selectedFiles.length > 0) {
+              document.getElementById('btn-copy').disabled = false;
+            }
+            log('Step 5 Success (Account B)', {
+              status: 'Authenticated',
+              scope: response.scope,
+              expires_in: response.expires_in
+            });
+          }
+        });
+        tokenClient.requestAccessToken();
+      } catch (err) {
+        log('GIS Error (Account B)', err.message);
+      }
+    }
+
+    // Step 6: Copy Shared File as Account B
+    async function copyFileAsAccountB() {
+      if (!tokenB || selectedFiles.length === 0) return;
+      const btn = document.getElementById("btn-copy");
+      btn.textContent = "Copying...";
+      copiedFiles = [];
+      try {
+        let copiedCount = 0;
+        for (const file of selectedFiles) {
+          if (file.mimeType === 'application/vnd.google-apps.folder') {
+            log(`Step 6 Note: [${file.name}] is a folder. Google Drive API files.copy only copies file items. Folder tree replication is handled in Phase 2.`, {});
+            continue;
+          }
+          log(`Step 6: Copying [${file.name}] as Account B...`, `POST https://www.googleapis.com/drive/v3/files/${file.fileId}/copy`);
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.fileId}/copy?fields=id,name,mimeType,owners,size,createdTime`, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${tokenB}` }
+          });
+          const data = await res.json();
+          log(`Step 6 Result: [${file.name}]`, { httpStatus: res.status, data });
+          if (res.ok && data.id) {
+            copiedCount++;
+            copiedFiles.push(data);
+          }
+        }
+        btn.style.backgroundColor = "#10b981";
+        btn.textContent = `Copied ${copiedCount} file(s) to Account B`;
+        if (copiedFiles.length > 0) {
+          document.getElementById("btn-verify-copy").disabled = false;
+        }
+      } catch (err) {
+        btn.textContent = "Execute Copy (files.copy)";
+        log("Step 6 Error", err.message);
+      }
+    }
+
+    // Step 7: Verify Resulting Copy Ownership
+    async function verifyCopyOwnership() {
+      if (!tokenB || copiedFiles.length === 0) return;
+      const btn = document.getElementById("btn-verify-copy");
+      btn.textContent = "Verifying...";
+      try {
+        let verifiedCount = 0;
+        for (const copy of copiedFiles) {
+          log(`Step 7: Verifying [${copy.name}] Ownership...`, `GET https://www.googleapis.com/drive/v3/files/${copy.id}`);
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${copy.id}?fields=id,name,mimeType,owners,size,capabilities`, {
+            headers: { "Authorization": `Bearer ${tokenB}` }
+          });
+          const data = await res.json();
+          log(`Step 7 Result: [${copy.name}] Verification`, { httpStatus: res.status, data });
+          if (res.ok && data.owners?.[0]?.emailAddress) {
+            verifiedCount++;
+          }
+        }
+        btn.style.backgroundColor = "#10b981";
+        btn.textContent = `SUCCESS: ${verifiedCount}/${copiedFiles.length} copies verified owned by Account B`;
+      } catch (err) {
+        btn.textContent = "Verify Copy Ownership";
+        log("Step 7 Error", err.message);
+      }
+    }
+
+    // Reset in-memory state
+    function resetHarness() {
+      tokenA = null;
+      tokenB = null;
+      selectedFiles = [];
+      copiedFiles = [];
+      sessionStorage.removeItem('poc_tokenA');
+      sessionStorage.removeItem('poc_tokenB');
+      document.getElementById('status-a').textContent = 'Not Connected';
+      document.getElementById('status-a').className = 'status-tag';
+      document.getElementById('status-b').textContent = 'Not Connected';
+      document.getElementById('status-b').className = 'status-tag';
+      document.getElementById('status-picker').textContent = 'No File Selected';
+      document.getElementById('status-picker').className = 'status-tag';
+      document.getElementById('selected-file-info').style.display = 'none';
+      document.getElementById('status-step-3').style.display = 'none';
+      document.getElementById('step-3-info').style.display = 'none';
+      document.getElementById('btn-picker').disabled = true;
+      document.getElementById('btn-verify-a').disabled = true;
+      document.getElementById('btn-share').disabled = true;
+      document.getElementById('btn-copy').disabled = true;
+      document.getElementById('btn-verify-copy').disabled = true;
+      log('Harness Reset', 'In-memory tokens and selected file state cleared.');
+    }
+
+    // Initial setup on window load
+    window.addEventListener('load', () => {
+      loadConfig();
+      onGapiLoad();
+      const savedA = sessionStorage.getItem('poc_tokenA');
+      const savedB = sessionStorage.getItem('poc_tokenB');
+      if (savedA) {
+        tokenA = savedA;
+        document.getElementById('status-a').textContent = 'Connected (drive.file)';
+        document.getElementById('status-a').className = 'status-tag connected';
+        document.getElementById('btn-picker').disabled = false;
+      }
+      if (savedB) {
+        tokenB = savedB;
+        document.getElementById('status-b').textContent = 'Connected (drive.file)';
+        document.getElementById('status-b').className = 'status-tag connected';
+      }
+    });
+  </script>
+</body>
+</html>

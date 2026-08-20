@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+
+# Local Real Credentials & Configuration (NEVER COMMIT)
+credentials.json
+picker-config.json
+.env
+
+# System & Logs
+.DS_Store
+*.log

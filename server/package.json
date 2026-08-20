@@ -1,0 +1,15 @@
+{
+  "name": "google-account-migration-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Google Account Migration Server (Drive & Photos)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "cors": "^2.8.5"
+  }
+}
