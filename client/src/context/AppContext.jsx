@@ -188,7 +188,6 @@ export function AppProvider({ children }) {
           });
 
           await refreshAccounts();
-          refreshMigrationAuthState();
           resolve(true);
         }
       });
