@@ -66,7 +66,7 @@ Render's free web service can go idle after inactivity. This repository now expo
 { "status": "ok" }
 ```
 
-The recommended free keep-warm setup is a GitHub Actions scheduled workflow that pings the health endpoint about every 12 minutes.
+The recommended free keep-warm setup is a GitHub Actions scheduled workflow that pings the health endpoint about every 10 minutes.
 GitHub Actions schedules are best-effort, so the exact execution time can drift a bit and should not be treated as a hard guarantee.
 
 To configure it:
