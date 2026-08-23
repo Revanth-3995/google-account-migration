@@ -9,6 +9,10 @@ import { config } from '../config/index.js';
 
 export const apiRouter = express.Router();
 
+apiRouter.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 // Config
 apiRouter.get('/config', (req, res) => {
   res.json({

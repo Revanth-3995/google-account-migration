@@ -1,0 +1,21 @@
+name: Render Keep Warm
+
+on:
+  schedule:
+    - cron: '*/12 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping-health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render health endpoint
+        env:
+          RENDER_HEALTH_URL: ${{ vars.RENDER_HEALTH_URL }}
+        run: |
+          if [ -z "$RENDER_HEALTH_URL" ]; then
+            echo "RENDER_HEALTH_URL is not configured"
+            exit 1
+          fi
+
+          curl -fsS "$RENDER_HEALTH_URL" >/dev/null

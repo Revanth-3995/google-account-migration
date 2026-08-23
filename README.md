@@ -58,6 +58,23 @@ Deployment notes:
   - `PHOTOS_IMAGE_VARIANT_TEST=0`
 - The beta is safest as a single shared instance for trusted users.
 
+### Keep-warm for Render free tier
+
+Render's free web service can go idle after inactivity. This repository now exposes a lightweight unauthenticated health endpoint at `GET /api/health` that returns:
+
+```json
+{ "status": "ok" }
+```
+
+The recommended free keep-warm setup is a GitHub Actions scheduled workflow that pings the health endpoint about every 12 minutes.
+GitHub Actions schedules are best-effort, so the exact execution time can drift a bit and should not be treated as a hard guarantee.
+
+To configure it:
+1. Set a GitHub repository variable named `RENDER_HEALTH_URL` to your deployed health URL, for example `https://your-service.onrender.com/api/health`.
+2. Leave the app itself unchanged; the workflow calls the public health endpoint directly.
+3. No OAuth tokens, cookies, or database credentials are sent.
+4. The workflow is defined in `.github/workflows/render-keep-warm.yml`.
+
 ---
 
 ## 📁 Repository Structure
