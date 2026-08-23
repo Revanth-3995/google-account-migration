@@ -35,7 +35,7 @@ function loadCredentials() {
     path.join(ROOT_DIR, 'poc/poc1_drive_share_copy/credentials.json')
   ];
 
-  let apiKey = envApiKey || 'YOUR_GOOGLE_API_KEY';
+  let apiKey = envApiKey || '';
   try {
     const pkPath = process.env.GOOGLE_PICKER_CONFIG_PATH || path.join(ROOT_DIR, 'poc/poc1_drive_share_copy/picker-config.json');
     if (fs.existsSync(pkPath)) {
