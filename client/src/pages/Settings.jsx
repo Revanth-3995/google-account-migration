@@ -18,12 +18,12 @@ export function Settings() {
         <div className="card">
           <div className="card-header">
             <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Key size={18} color="#38bdf8" /> Google OAuth Configuration
+              <Key size={18} color="#38bdf8" /> OAuth configuration
             </div>
           </div>
           <div style={{ fontSize: '0.85rem' }}>
             <div style={{ marginBottom: 12 }}>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Google Client ID</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Client ID</div>
               <div className="mono" style={{ color: '#38bdf8', wordBreak: 'break-all', marginTop: 2 }}>
                 {config.clientId || 'Not Loaded'}
               </div>
@@ -44,7 +44,7 @@ export function Settings() {
             </div>
           </div>
           <ul style={{ fontSize: '0.85rem', color: 'var(--text-muted)', paddingLeft: 18, lineHeight: 1.8 }}>
-            <li><strong>Drive Data Plane:</strong> 0 local file bytes (Google server copy).</li>
+            <li><strong>Drive Data Plane:</strong> 0 local file bytes (server copy).</li>
             <li><strong>Photos Data Plane:</strong> In-memory RAM stream only (0 disk writes).</li>
             <li><strong>Scope Discipline:</strong> Least-privilege non-restricted scopes exclusively.</li>
             <li><strong>Source Safety:</strong> Strictly non-destructive (no deletions).</li>

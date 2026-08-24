@@ -211,7 +211,7 @@ export function DriveStudio({ setActiveTab }) {
       if (res.success && res.jobId) {
         await api.startJob(res.jobId);
         setActiveJobId(res.jobId);
-        setActiveTab('jobs');
+        setActiveTab('/migration');
       }
     } catch (e) {
       alert('Error starting migration: ' + e.message);
@@ -223,9 +223,9 @@ export function DriveStudio({ setActiveTab }) {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 4 }}>Google Drive Migration Studio</h2>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 4 }}>Drive migration studio</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          Rebalance Google Drive storage with verified server-to-server copy (0 local bytes transferred).
+          Rebalance Drive storage with verified server-to-server copy (0 local bytes transferred).
         </p>
         <div style={{
           marginTop: 14,

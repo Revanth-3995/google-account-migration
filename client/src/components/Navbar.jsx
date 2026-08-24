@@ -8,8 +8,8 @@ export function Navbar({ activeTab, setActiveTab }) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Activity },
     { id: 'accounts', label: 'Accounts', icon: UserCheck },
-    { id: 'drive', label: 'Google Drive', icon: HardDrive },
-    { id: 'photos', label: 'Google Photos', icon: Image },
+    { id: 'drive', label: 'Drive', icon: HardDrive },
+    { id: 'photos', label: 'Photos', icon: Image },
     { id: 'jobs', label: 'Jobs', icon: ShieldCheck },
     { id: 'history', label: 'History', icon: History },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -42,11 +42,11 @@ export function Navbar({ activeTab, setActiveTab }) {
             fontWeight: 800,
             color: '#090d16'
           }}>
-            GM
+            CO
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#f3f4f6' }}>Drive & Photos Manager</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Privacy-First Control Plane</div>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#f3f4f6' }}>Brand Name</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Migration workspace</div>
           </div>
         </div>
 

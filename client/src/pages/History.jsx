@@ -1,86 +1,71 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { Badge } from '../components/Badge';
+import { PageHeader, SectionHeader, EmptyState } from '../components/ui';
 
 export function History() {
   const { jobs, auditLogs } = useApp();
 
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 4 }}>Migration History & Audit Trail</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          Historical record of completed, partial, and cancelled migration jobs stored in local SQLite database.
-        </p>
-      </div>
+    <div className="page-shell">
+      <PageHeader
+        eyebrow="Migration history"
+        title="A polished record of what moved"
+        description="Completed, partial, failed, and cancelled migrations stay visible here for the current workspace only."
+      />
 
-      <div className="card">
-        <div className="card-header">
-          <div className="card-title">Completed & Past Jobs</div>
-        </div>
-
+      <section className="card-surface">
+        <SectionHeader number="01" title="Jobs" description="A compact migration record." />
         {jobs.length === 0 ? (
-          <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)' }}>No historical jobs recorded.</div>
+          <EmptyState title="No historical jobs recorded." description="Once a migration runs, it will appear here." />
         ) : (
           <div className="table-container">
             <table>
               <thead>
                 <tr>
-                  <th>Job ID</th>
-                  <th>Service</th>
-                  <th>Source Account</th>
-                  <th>Destination Account</th>
-                  <th>Items</th>
+                  <th>Date</th>
+                  <th>Source</th>
+                  <th>Destination</th>
+                  <th>Type</th>
                   <th>Status</th>
-                  <th>Completed At</th>
+                  <th>Items</th>
+                  <th>Duration</th>
                 </tr>
               </thead>
               <tbody>
                 {jobs.map((j) => (
                   <tr key={j.id}>
-                    <td className="mono" style={{ fontSize: '0.8rem', color: '#38bdf8' }}>{j.id}</td>
+                    <td className="mono">{j.created_at ? new Date(j.created_at).toLocaleString() : '—'}</td>
+                    <td>{j.source_email}</td>
+                    <td>{j.dest_email}</td>
                     <td><Badge type={j.service_type} /></td>
-                    <td style={{ fontSize: '0.8rem' }}>{j.source_email}</td>
-                    <td style={{ fontSize: '0.8rem' }}>{j.dest_email}</td>
-                    <td style={{ fontSize: '0.8rem' }}>{j.completed_items} / {j.total_items}</td>
                     <td><Badge type={j.status} /></td>
-                    <td style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                      {j.completed_at ? new Date(j.completed_at).toLocaleString() : 'In Progress'}
-                    </td>
+                    <td className="mono">{j.completed_items} / {j.total_items}</td>
+                    <td className="mono">{j.completed_at ? `${Math.max(0, Math.round((new Date(j.completed_at) - new Date(j.created_at || j.completed_at)) / 60000))}m` : 'In progress'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="card">
-        <div className="card-header">
-          <div className="card-title">Full Audit Trail</div>
+      <section className="card-surface">
+        <SectionHeader number="02" title="Activity log" description="The current workspace’s audit trail." />
+        <div className="activity-list">
+          {auditLogs.length === 0 ? (
+            <EmptyState title="No audit events yet." description="Migration events will appear here as activity is recorded." />
+          ) : (
+            auditLogs.map((log) => (
+              <div key={log.id} className="activity-item">
+                <span className="mono activity-item__time">{new Date(log.timestamp).toLocaleString()}</span>
+                <span className={`activity-item__level level-${log.level.toLowerCase()}`}>{log.level}</span>
+                <div>{log.message}</div>
+              </div>
+            ))
+          )}
         </div>
-
-        <div style={{
-          backgroundColor: 'var(--bg-input)',
-          border: '1px solid var(--border)',
-          borderRadius: 8,
-          padding: 12,
-          maxHeight: 300,
-          overflowY: 'auto',
-          fontFamily: 'monospace',
-          fontSize: '0.75rem'
-        }}>
-          {auditLogs.map((l) => (
-            <div key={l.id} style={{ marginBottom: 4 }}>
-              <span style={{ color: 'var(--text-dim)' }}>[{new Date(l.timestamp).toLocaleString()}]</span>{' '}
-              <span style={{ color: l.level === 'ERROR' ? '#ef4444' : l.level === 'WARN' ? '#f59e0b' : '#38bdf8' }}>
-                [{l.event_type}]
-              </span>{' '}
-              <span style={{ color: '#e2e8f0' }}>{l.message}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

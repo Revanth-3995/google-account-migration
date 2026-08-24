@@ -2,7 +2,8 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 import { Badge } from '../components/Badge';
-import { UserCheck, Shield, Check, Trash2, Key, RefreshCw } from 'lucide-react';
+import { PageHeader, ProgressBar, StatusBadge, ConfirmDialog } from '../components/ui';
+import { UserCheck, Shield, Trash2, RefreshCw, ArrowDown } from 'lucide-react';
 
 export function Accounts() {
   const {
@@ -15,161 +16,116 @@ export function Accounts() {
     isAuthenticating,
     migrationAuthState
   } = useApp();
+  const [confirmRole, setConfirmRole] = React.useState(null);
 
   const disconnectAccount = async (role) => {
-    if (confirm(`Disconnect ${role === 'source' ? 'Source Account A' : 'Destination Account B'}?`)) {
-      await api.deleteAccount(role);
-      refreshAccounts();
-    }
+    if (confirmRole !== role) return;
+    await api.deleteAccount(role);
+    setConfirmRole(null);
+    refreshAccounts();
   };
 
+  const accountCard = (role, account, lifetime, tone) => (
+    <article className="account-card card-surface">
+      <div className="account-card__top">
+        <div>
+          <div className="eyebrow">{role === 'source' ? 'SOURCE · Account A' : 'DESTINATION · Account B'}</div>
+          <h3>{role === 'source' ? 'The account you are moving from' : 'The account you are moving to'}</h3>
+        </div>
+        <Badge type={account ? 'COMPLETED' : 'READY'} text={account ? 'Connected' : 'Not connected'} />
+      </div>
+
+      <p className="account-card__lede">
+        {role === 'source'
+          ? 'Authorizes Drive browsing and Google Photos picker access.'
+          : 'Receives the copied Drive and Photos content.'}
+      </p>
+
+      <div className="account-card__body">
+        {account ? (
+          <>
+            <div className="account-email">{account.email}</div>
+            <div className="account-scopes mono">Scopes: {account.scopes}</div>
+            <ProgressBar
+              value={lifetime.expiresAt ? Math.max(0, 100 - Math.min(100, ((lifetime.remainingMs || 0) / ((lifetime.remainingMs || 1) + 1)) * 100)) : 0}
+              label={lifetime.remainingLabel}
+              detail={lifetime.detailLabel}
+              tone={tone}
+            />
+            <div className="card-actions">
+              <button className={`btn ${role === 'source' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => promptLogin(role)} disabled={isAuthenticating}>
+                <RefreshCw size={14} className={isAuthenticating ? 'spin' : ''} /> Refresh token / re-auth
+              </button>
+              <button className="btn btn-danger" onClick={() => setConfirmRole(role)}>
+                <Trash2 size={14} /> Disconnect
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="empty-inline">
+              <Shield size={18} />
+              <p>{role === 'source' ? 'Connect the Google account you are moving from.' : 'Connect the Google account you are moving to.'}</p>
+            </div>
+            <button className={`btn ${role === 'source' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => promptLogin(role)} disabled={isAuthenticating}>
+              <UserCheck size={16} /> Connect {role === 'source' ? 'Source Account' : 'Destination Account'}
+            </button>
+          </>
+        )}
+      </div>
+    </article>
+  );
+
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 4 }}>Account Hub</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          Connect and manage your personal Google Accounts. Click "Refresh Token" anytime an account token reaches its 1-hour limit.
-        </p>
-        <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Badge type={migrationAuthState.ready ? 'COMPLETED' : 'WARNING'} text={migrationAuthState.ready ? 'Migration Session Ready' : `Migration Session: ${migrationAuthState.state}`} />
-          {sourceAccount ? <Badge type="COMPLETED" text="A Connected" /> : <Badge type="READY" text="A Missing" />}
-          {destAccount ? <Badge type="COMPLETED" text="B Connected" /> : <Badge type="READY" text="B Missing" />}
-        </div>
-        <div style={{
-          marginTop: 14,
-          padding: '14px 16px',
-          borderRadius: 12,
-          border: '1px solid rgba(96, 165, 250, 0.35)',
-          background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.18), rgba(16, 185, 129, 0.10))',
-          display: 'flex',
-          gap: 16,
-          flexWrap: 'wrap',
-          alignItems: 'center'
-        }}>
-          <div style={{ minWidth: 220 }}>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Account A lifetime</div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: sourceLifetime.expired ? '#ef4444' : '#38bdf8', fontVariantNumeric: 'tabular-nums' }}>
-              {sourceLifetime.remainingLabel}
-            </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{sourceLifetime.detailLabel}</div>
-          </div>
-          <div style={{ minWidth: 220 }}>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Account B lifetime</div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: destLifetime.expired ? '#ef4444' : '#10b981', fontVariantNumeric: 'tabular-nums' }}>
-              {destLifetime.remainingLabel}
-            </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{destLifetime.detailLabel}</div>
-          </div>
-        </div>
-      </div>
+    <div className="page-shell">
+      <PageHeader
+        eyebrow="Account connection"
+        title="Connect source and destination accounts"
+        description="The distinction stays explicit: Account A is the source, Account B is the destination."
+        meta={<StatusBadge tone={migrationAuthState.ready ? 'green' : 'amber'} mono>{migrationAuthState.ready ? 'Migration ready' : migrationAuthState.state}</StatusBadge>}
+      />
 
-      <div className="grid-2">
-        {/* Source Account Card */}
-        <div className="card" style={{ borderTop: '3px solid #38bdf8' }}>
-          <div className="card-header">
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '1.05rem', color: '#38bdf8' }}>Source Account (Account A)</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Origin of files & photos</div>
-            </div>
-            {sourceAccount ? (
-              <Badge type="COMPLETED" text="Connected" />
-            ) : (
-              <Badge type="READY" text="Not Connected" />
-            )}
+      <section className="hero-bridge card-surface">
+        <div className="hero-bridge__stack">
+          <div className="hero-bridge__column">
+            <span className="mono">SOURCE</span>
+            <strong>{sourceAccount ? sourceAccount.email : 'Not connected'}</strong>
           </div>
 
-          {sourceAccount ? (
-            <div>
-              <div style={{ backgroundColor: 'var(--bg-input)', padding: 12, borderRadius: 8, marginBottom: 16 }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Authenticated Email</div>
-                <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{sourceAccount.email}</div>
-                <div style={{ fontSize: '0.75rem', color: '#38bdf8', marginTop: 4, wordBreak: 'break-all' }}>
-                  Scopes: {sourceAccount.scopes}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => promptLogin('source')}
-                  disabled={isAuthenticating}
-                >
-                  <RefreshCw size={14} className={isAuthenticating ? 'animate-spin' : ''} /> Refresh Token / Re-auth
-                </button>
-                <button className="btn btn-danger" onClick={() => disconnectAccount('source')}>
-                  <Trash2 size={14} /> Disconnect
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>
-                Connect Source Account A for Drive selection and Google Photos Picker access.
-              </p>
-              <button
-                className="btn btn-primary"
-                onClick={() => promptLogin('source')}
-                disabled={isAuthenticating}
-              >
-                <UserCheck size={16} /> Connect Source Account A
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Destination Account Card */}
-        <div className="card" style={{ borderTop: '3px solid #10b981' }}>
-          <div className="card-header">
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '1.05rem', color: '#10b981' }}>Destination Account (Account B)</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Target for copied files & photos</div>
-            </div>
-            {destAccount ? (
-              <Badge type="COMPLETED" text="Connected" />
-            ) : (
-              <Badge type="READY" text="Not Connected" />
-            )}
+          <div className="hero-bridge__rail" aria-hidden="true">
+            <span className="hero-bridge__arrow"><ArrowDown size={18} /></span>
           </div>
 
-          {destAccount ? (
-            <div>
-              <div style={{ backgroundColor: 'var(--bg-input)', padding: 12, borderRadius: 8, marginBottom: 16 }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Authenticated Email</div>
-                <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{destAccount.email}</div>
-                <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: 4, wordBreak: 'break-all' }}>
-                  Scopes: {destAccount.scopes}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  className="btn btn-primary"
-                  style={{ backgroundColor: '#10b981' }}
-                  onClick={() => promptLogin('destination')}
-                  disabled={isAuthenticating}
-                >
-                  <RefreshCw size={14} className={isAuthenticating ? 'animate-spin' : ''} /> Refresh Token / Re-auth
-                </button>
-                <button className="btn btn-danger" onClick={() => disconnectAccount('destination')}>
-                  <Trash2 size={14} /> Disconnect
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>
-                Connect Destination Account B for Drive copying and Google Photos library uploading.
-              </p>
-              <button
-                className="btn btn-primary"
-                style={{ backgroundColor: '#10b981' }}
-                onClick={() => promptLogin('destination')}
-                disabled={isAuthenticating}
-              >
-                <UserCheck size={16} /> Connect Destination Account B
-              </button>
-            </div>
-          )}
+          <div className="hero-bridge__column hero-bridge__column--center">
+            <span className="mono">MIGRATION</span>
+            <strong>Workspace authorization</strong>
+          </div>
+
+          <div className="hero-bridge__rail" aria-hidden="true">
+            <span className="hero-bridge__arrow"><ArrowDown size={18} /></span>
+          </div>
+
+          <div className="hero-bridge__column">
+            <span className="mono">DESTINATION</span>
+            <strong>{destAccount ? destAccount.email : 'Not connected'}</strong>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <section className="content-grid content-grid--two">
+        {accountCard('source', sourceAccount, sourceLifetime, 'blue')}
+        {accountCard('destination', destAccount, destLifetime, 'green')}
+      </section>
+
+      <ConfirmDialog
+        open={!!confirmRole}
+        title={`Disconnect ${confirmRole === 'source' ? 'Account A' : 'Account B'}?`}
+        description="This only disconnects the current workspace account."
+        confirmLabel="Disconnect"
+        destructive
+        onCancel={() => setConfirmRole(null)}
+        onConfirm={() => disconnectAccount(confirmRole)}
+      />
     </div>
   );
 }

@@ -96,7 +96,7 @@ export function PhotosStudio({ setActiveTab }) {
       if (res.success && res.jobId) {
         await api.startJob(res.jobId);
         setActiveJobId(res.jobId);
-        setActiveTab('jobs');
+        setActiveTab('/migration');
       }
     } catch (e) {
       alert('Error starting migration: ' + e.message);
@@ -108,7 +108,7 @@ export function PhotosStudio({ setActiveTab }) {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 4 }}>Google Photos Migration Studio</h2>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 4 }}>Photos migration studio</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
           Stream photos & full-length videos from Account A to Account B via in-memory ephemeral relay with intact EXIF metadata.
         </p>
@@ -184,8 +184,8 @@ export function PhotosStudio({ setActiveTab }) {
       <div className="card">
         <div className="card-header">
           <div>
-            <div style={{ fontWeight: 600 }}>1. Google Photos Picker Selection</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Official picker UI hosted by Google</div>
+            <div style={{ fontWeight: 600 }}>1. Photos picker selection</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Official picker UI</div>
           </div>
           {pickedItems.length > 0 ? (
             <Badge type="COMPLETED" text={`${pickedItems.length} Item(s) Selected`} />
@@ -198,7 +198,7 @@ export function PhotosStudio({ setActiveTab }) {
 
         {!activeSession ? (
           <button className="btn btn-photos" onClick={createSession} disabled={isAuthenticating || migrationAuthState.checking || !migrationAuthState.ready}>
-            <Image size={16} /> Create Google Photos Picker Session
+            <Image size={16} /> Create Photos picker session
           </button>
         ) : (
           <div>
@@ -218,7 +218,7 @@ export function PhotosStudio({ setActiveTab }) {
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <button className="btn btn-photos" onClick={openPickerUi} disabled={!migrationAuthState.ready || migrationAuthState.checking}>
-                1. Open Google Photos Picker UI
+                1. Open Photos picker UI
               </button>
               <button className="btn btn-secondary" onClick={pollSession} disabled={isPolling}>
                 <RefreshCw size={14} className={isPolling ? 'animate-spin' : ''} />
