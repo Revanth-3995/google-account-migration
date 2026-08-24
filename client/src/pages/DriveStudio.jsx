@@ -6,6 +6,7 @@ import { HardDrive, FolderPlus, FileCheck, ArrowRight, ShieldCheck, CheckCircle2
 
 export function DriveStudio({ setActiveTab }) {
   const { config, sourceAccount, destAccount, promptLogin, setActiveJobId, isAuthenticating } = useApp();
+  const viteApiKey = import.meta.env.VITE_GOOGLE_API_KEY || '';
   const [migrationMode, setMigrationMode] = useState('HIERARCHY');
   const [rootFolder, setRootFolder] = useState(null);
   const [discoveredManifest, setDiscoveredManifest] = useState(null);
@@ -15,13 +16,23 @@ export function DriveStudio({ setActiveTab }) {
 
   const [pickerReady, setPickerReady] = useState(false);
 
+  const waitForPicker = () => new Promise((resolve) => {
+    if (typeof gapi === 'undefined') {
+      resolve(false);
+      return;
+    }
+
+    gapi.load('picker', () => {
+      setPickerReady(true);
+      resolve(true);
+    });
+  });
+
   // Pre-load Google Picker API on component mount
   useEffect(() => {
     const loadPicker = () => {
       if (typeof gapi !== 'undefined') {
-        gapi.load('picker', () => {
-          setPickerReady(true);
-        });
+        waitForPicker();
       } else {
         // Retry every 500ms until gapi is available
         setTimeout(loadPicker, 500);
@@ -30,39 +41,45 @@ export function DriveStudio({ setActiveTab }) {
     loadPicker();
   }, []);
 
-  const getOAuthToken = () => {
-    if (!sourceAccount) return null;
-    if (sourceAccount.token_data) {
+  const getOAuthToken = (account = sourceAccount) => {
+    if (!account) return null;
+    if (account.token_data) {
       try {
-        const data = typeof sourceAccount.token_data === 'string'
-          ? JSON.parse(sourceAccount.token_data)
-          : sourceAccount.token_data;
+        const data = typeof account.token_data === 'string'
+          ? JSON.parse(account.token_data)
+          : account.token_data;
         if (data && data.access_token) return data.access_token;
       } catch (e) {}
     }
-    if (sourceAccount.access_token) return sourceAccount.access_token;
+    if (account.access_token) return account.access_token;
+    return null;
+  };
+
+  const ensureSourceToken = async () => {
+    let token = getOAuthToken();
+    if (token) return token;
+
+    const loginResult = await promptLogin('source');
+    if (!loginResult) return null;
+
+    if (typeof loginResult === 'string') return loginResult;
+    if (loginResult.access_token) return loginResult.access_token;
+
+    token = getOAuthToken();
+    if (token) return token;
+
+    alert('Source account connected, but the Drive picker token is not available yet. Please try again.');
     return null;
   };
 
   // Step 1: Open Picker to select root folder
   const openFolderPicker = async () => {
-    let token = getOAuthToken();
-    if (!token) {
-      const ok = await promptLogin('source');
-      if (!ok) return;
-      // Re-get token after login
-      token = getOAuthToken();
-      if (!token) return;
-    }
+    const token = await ensureSourceToken();
+    if (!token) return;
 
     if (!pickerReady) {
-      // Force-load picker now and retry
-      if (typeof gapi !== 'undefined') {
-        gapi.load('picker', () => {
-          setPickerReady(true);
-          openFolderPicker();
-        });
-      } else {
+      const loaded = await waitForPicker();
+      if (!loaded) {
         alert('Google API is loading. Please try again in a moment.');
       }
       return;
@@ -74,14 +91,16 @@ export function DriveStudio({ setActiveTab }) {
         .setSelectFolderEnabled(true)
         .setMimeTypes('application/vnd.google-apps.folder');
 
-      const appId = config.clientId ? config.clientId.split('-')[0] : '';
-      const apiKey = config.apiKey || 'YOUR_GOOGLE_API_KEY';
+    const apiKey = config.apiKey || viteApiKey || '';
+    if (!apiKey) {
+      alert('Google API key is missing. Set GOOGLE_API_KEY on the server or VITE_GOOGLE_API_KEY for the client, then restart the app.');
+      return;
+    }
 
       const builder = new google.picker.PickerBuilder()
         .addView(view)
         .setOAuthToken(token)
         .setDeveloperKey(apiKey)
-        .setAppId(appId)
         .setOrigin(window.location.protocol + '//' + window.location.host)
         .setCallback(async (data) => {
           const action = data[google.picker.Response.ACTION] || data.action;
@@ -104,21 +123,12 @@ export function DriveStudio({ setActiveTab }) {
 
   // Step 2: Open Multi-select Picker for Direct Files
   const openFilesPicker = async () => {
-    let token = getOAuthToken();
-    if (!token) {
-      const ok = await promptLogin('source');
-      if (!ok) return;
-      token = getOAuthToken();
-      if (!token) return;
-    }
+    const token = await ensureSourceToken();
+    if (!token) return;
 
     if (!pickerReady) {
-      if (typeof gapi !== 'undefined') {
-        gapi.load('picker', () => {
-          setPickerReady(true);
-          openFilesPicker();
-        });
-      } else {
+      const loaded = await waitForPicker();
+      if (!loaded) {
         alert('Google API is loading. Please try again in a moment.');
       }
       return;
@@ -129,15 +139,17 @@ export function DriveStudio({ setActiveTab }) {
         .setIncludeFolders(true)
         .setSelectFolderEnabled(false);
 
-      const appId = config.clientId ? config.clientId.split('-')[0] : '';
-      const apiKey = config.apiKey || 'YOUR_GOOGLE_API_KEY';
+    const apiKey = config.apiKey || viteApiKey || '';
+    if (!apiKey) {
+      alert('Google API key is missing. Set GOOGLE_API_KEY on the server or VITE_GOOGLE_API_KEY for the client, then restart the app.');
+      return;
+    }
 
       const builder = new google.picker.PickerBuilder()
         .addView(view)
         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
         .setOAuthToken(token)
         .setDeveloperKey(apiKey)
-        .setAppId(appId)
         .setOrigin(window.location.protocol + '//' + window.location.host)
         .setCallback((data) => {
           const action = data[google.picker.Response.ACTION] || data.action;

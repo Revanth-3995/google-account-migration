@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -8,6 +8,9 @@ const __dirname = path.dirname(__filename);
 
 const ROOT_DIR = path.resolve(__dirname, '../../..');
 const SERVER_DIR = path.resolve(__dirname, '../..');
+
+dotenv.config({ path: path.join(ROOT_DIR, '.env') });
+dotenv.config({ path: path.join(SERVER_DIR, '.env') });
 
 function loadCredentials() {
   const envClientId = process.env.GOOGLE_CLIENT_ID || '';

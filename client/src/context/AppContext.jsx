@@ -188,7 +188,7 @@ export function AppProvider({ children }) {
           });
 
           await refreshAccounts();
-          resolve(true);
+          resolve(res.access_token);
         }
       });
 
