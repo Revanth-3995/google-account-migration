@@ -1,56 +1,174 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { ShieldCheck, Database, Key } from 'lucide-react';
+import { ShieldCheck, Shield, History, Users, Lock, Database, Settings as SettingsIcon, AlertTriangle } from 'lucide-react';
+import { Badge } from '../components/Badge';
+import { PageHeader, SectionHeader, StatusBadge, EmptyState } from '../components/ui';
+
+function SecurityCard({ icon: Icon, title, description, meta, tone = 'neutral' }) {
+  return (
+    <article className="info-card">
+      <div className="feature-top">
+        <Icon size={18} />
+        <span>{title}</span>
+      </div>
+      <p>{description}</p>
+      {meta ? <div style={{ marginTop: 10 }}><StatusBadge tone={tone} mono>{meta}</StatusBadge></div> : null}
+    </article>
+  );
+}
 
 export function Settings() {
-  const { config } = useApp();
+  const { sourceAccount, destAccount, sourceLifetime, destLifetime, jobs, auditLogs } = useApp();
+
+  const activeJobs = jobs.filter((j) => j.status === 'RUNNING').length;
+  const completedJobs = jobs.filter((j) => j.status === 'COMPLETED' || j.status === 'COMPLETED_WITH_ERRORS').length;
 
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 4 }}>System Settings & Verification</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          Local control plane configuration, scope verification, and storage invariants.
-        </p>
-      </div>
+    <div className="page-shell">
+      <PageHeader
+        eyebrow="Security & privacy"
+        title="Security & Privacy"
+        description="Review connected accounts, migration visibility, and the current privacy posture of this workspace."
+      />
 
-      <div className="grid-2">
-        <div className="card">
-          <div className="card-header">
-            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Key size={18} color="#38bdf8" /> OAuth configuration
-            </div>
-          </div>
-          <div style={{ fontSize: '0.85rem' }}>
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Client ID</div>
-              <div className="mono" style={{ color: '#38bdf8', wordBreak: 'break-all', marginTop: 2 }}>
-                {config.clientId || 'Not Loaded'}
-              </div>
-            </div>
+      <section className="content-grid">
+        <SecurityCard
+          icon={Users}
+          title="Connected accounts"
+          description="The workspace uses two explicitly connected Google accounts: source Account A and destination Account B."
+          meta={`${sourceAccount ? 'Source connected' : 'Source not connected'} · ${destAccount ? 'Destination connected' : 'Destination not connected'}`}
+          tone={sourceAccount && destAccount ? 'green' : 'amber'}
+        />
+        <SecurityCard
+          icon={ShieldCheck}
+          title="Authorization"
+          description="Account access is based on Google OAuth consent already implemented in the app. Passwords are not requested by this interface."
+          meta="OAuth-based access"
+          tone="blue"
+        />
+        <SecurityCard
+          icon={History}
+          title="Migration visibility"
+          description="Active jobs, completed jobs, and migration history remain visible in the workspace so you can review what moved."
+          meta={`${activeJobs} active · ${completedJobs} completed`}
+          tone="green"
+        />
+      </section>
+
+      <SectionHeader
+        number="01"
+        title="Account status"
+        description="These are the only connection details shown here. No raw client IDs, project IDs, secrets, API keys, or tokens are displayed."
+      />
+
+      <section className="content-grid content-grid--two">
+        <article className="account-card card-surface">
+          <div className="account-card__top">
             <div>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Project ID</div>
-              <div className="mono" style={{ color: '#f3f4f6', marginTop: 2 }}>
-                {config.projectId}
+              <div className="eyebrow">SOURCE · Account A</div>
+              <h3>Connected source account</h3>
+            </div>
+            <Badge type={sourceAccount ? 'COMPLETED' : 'READY'} text={sourceAccount ? 'Connected' : 'Not connected'} />
+          </div>
+          {sourceAccount ? (
+            <div className="account-card__body">
+              <div className="account-email">{sourceAccount.email}</div>
+              <div className="account-scopes mono">{sourceAccount.scopes}</div>
+              <div className="empty-inline">
+                <Lock size={18} />
+                <p>{sourceLifetime.remainingLabel}</p>
               </div>
             </div>
-          </div>
-        </div>
+          ) : (
+            <EmptyState title="Source account not connected." description="Connect Account A from the Accounts page to enable Drive and Photos migration." />
+          )}
+        </article>
 
-        <div className="card">
-          <div className="card-header">
-            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <ShieldCheck size={18} color="#10b981" /> Architecture Invariants
+        <article className="account-card card-surface">
+          <div className="account-card__top">
+            <div>
+              <div className="eyebrow">DESTINATION · Account B</div>
+              <h3>Connected destination account</h3>
             </div>
+            <Badge type={destAccount ? 'COMPLETED' : 'READY'} text={destAccount ? 'Connected' : 'Not connected'} />
           </div>
-          <ul style={{ fontSize: '0.85rem', color: 'var(--text-muted)', paddingLeft: 18, lineHeight: 1.8 }}>
-            <li><strong>Drive Data Plane:</strong> 0 local file bytes (server copy).</li>
-            <li><strong>Photos Data Plane:</strong> In-memory RAM stream only (0 disk writes).</li>
-            <li><strong>Scope Discipline:</strong> Least-privilege non-restricted scopes exclusively.</li>
-            <li><strong>Source Safety:</strong> Strictly non-destructive (no deletions).</li>
-          </ul>
-        </div>
-      </div>
+          {destAccount ? (
+            <div className="account-card__body">
+              <div className="account-email">{destAccount.email}</div>
+              <div className="account-scopes mono">{destAccount.scopes}</div>
+              <div className="empty-inline">
+                <Lock size={18} />
+                <p>{destLifetime.remainingLabel}</p>
+              </div>
+            </div>
+          ) : (
+            <EmptyState title="Destination account not connected." description="Connect Account B from the Accounts page to receive migrated content." />
+          )}
+        </article>
+      </section>
+
+      <SectionHeader
+        number="02"
+        title="Privacy and data handling"
+        description="Only truthful, implemented behavior is described here."
+      />
+
+      <section className="content-grid">
+        <SecurityCard
+          icon={Lock}
+          title="Data handling"
+          description="Migration data, job history, and audit events remain inside the workspace so the app can show progress and completion."
+          meta="Workspace-scoped records"
+          tone="neutral"
+        />
+        <SecurityCard
+          icon={Database}
+          title="Storage"
+          description="The app stores operational records needed for migration and history. It does not expose the underlying database URL or other internal connection strings in the UI."
+          meta="Operational storage only"
+          tone="amber"
+        />
+        <SecurityCard
+          icon={Shield}
+          title="User controls"
+          description="You can disconnect accounts from the Accounts page and review migration history from the History page."
+          meta="Disconnect and review controls"
+          tone="green"
+        />
+      </section>
+
+      <SectionHeader
+        number="03"
+        title="Advanced diagnostics"
+        description="Developer-oriented information stays out of the normal Settings surface."
+      />
+
+      <section className="content-grid">
+        <article className="info-card">
+          <div className="feature-top">
+            <SettingsIcon size={18} />
+            <span>Diagnostics policy</span>
+          </div>
+          <p>
+            No raw client IDs, project IDs, API keys, secrets, access tokens, refresh tokens, database URLs, or session identifiers are shown to normal users.
+          </p>
+          <p style={{ marginTop: 10 }}>
+            If you need debugging help, use the application logs or developer tools outside the user-facing Settings page.
+          </p>
+        </article>
+        <article className="info-card">
+          <div className="feature-top">
+            <AlertTriangle size={18} />
+            <span>What is intentionally hidden</span>
+          </div>
+          <p>
+            OAuth Client ID, Google Cloud Project ID, API keys, client secrets, tokens, and backend connection strings remain in configuration and are not rendered here.
+          </p>
+          <p style={{ marginTop: 10 }}>
+            This keeps the UI aligned with a consumer SaaS security page instead of a developer console.
+          </p>
+        </article>
+      </section>
     </div>
   );
 }
