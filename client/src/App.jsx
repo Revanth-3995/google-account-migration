@@ -113,7 +113,7 @@ function Shell({ pathname, navigate, children }) {
           <div>
             <BrandLogo variant="dark" />
             <p className="footer-copy">Memories are precious. Your Drive usage shouldn't decide how many memories live.</p>
-            <p className="mono footer-note">Independent migration SaaS for Drive and Photos.</p>
+            <p className="mono footer-note">LiveEver · Digital lineages, unbroken</p>
           </div>
           <div>
             <h4>Product</h4>
@@ -151,14 +151,14 @@ function LandingPage({ navigate }) {
     <div className="landing">
       <section className="hero-grid hero-grid--landing">
         <div className="hero-copy">
-          <div className="eyebrow">YOUR DIGITAL LIFE, MOVED WITH CARE</div>
+          <div className="eyebrow">YOUR DIGITAL LIFE, ALWAYS WITH YOU</div>
           <div className="hero-brand">
             <BrandLogo variant="dark" />
           </div>
           <h1>Memories are precious. Your Drive usage shouldn't decide how many memories live.</h1>
           <p className="lede">
-            Move the Google Drive files and Google Photos content that matter between accounts with explicit authorization,
-            clear progress, and a calm workflow that respects your time and your history.
+            LiveEver helps you move the files and memories that matter from one account to another — simply, securely,
+            and without leaving your digital life behind.
           </p>
           <div className="hero-actions">
             <button className="btn btn-primary btn-lg" onClick={() => navigate('/app')}>Start your migration</button>
@@ -175,7 +175,7 @@ function LandingPage({ navigate }) {
         <div className="hero-visual card-surface">
           <div className="preview-stack">
             <div className="preview-card preview-card--large">
-              <div className="preview-card__eyebrow">Migration command center</div>
+              <div className="preview-card__eyebrow">LiveEver control center</div>
               <div className="preview-card__title">Account A → Account B</div>
               <ProgressBar value={68} label="Current migration" detail="2,148 / 3,140 items" />
               <div className="preview-meta">
@@ -369,20 +369,20 @@ export function App() {
   const [pathname, navigate] = usePathname();
   useEffect(() => {
     const titleMap = {
-      '/': `${PRODUCT_NAME} - Digital lineages, unbroken`,
-      '/app': `Dashboard - ${PRODUCT_NAME}`,
-      '/connect': `Accounts - ${PRODUCT_NAME}`,
-      '/drive': `Drive - ${PRODUCT_NAME}`,
-      '/photos': `Photos - ${PRODUCT_NAME}`,
-      '/migration': `Migration - ${PRODUCT_NAME}`,
-      '/history': `History - ${PRODUCT_NAME}`,
-      '/security': `Security - ${PRODUCT_NAME}`,
-      '/settings': `Settings - ${PRODUCT_NAME}`,
-      '/help': `Help - ${PRODUCT_NAME}`,
-      '/about': `About - ${PRODUCT_NAME}`,
-      '/contact': `Contact - ${PRODUCT_NAME}`,
-      '/privacy': `Privacy - ${PRODUCT_NAME}`,
-      '/terms': `Terms - ${PRODUCT_NAME}`
+      '/': 'LiveEver - Digital lineages, unbroken',
+      '/app': 'LiveEver - Dashboard',
+      '/connect': 'LiveEver - Accounts',
+      '/drive': 'LiveEver - Drive',
+      '/photos': 'LiveEver - Photos',
+      '/migration': 'LiveEver - Migration',
+      '/history': 'LiveEver - History',
+      '/security': 'LiveEver - Security',
+      '/settings': 'LiveEver - Settings',
+      '/help': 'LiveEver - Help',
+      '/about': 'LiveEver - About',
+      '/contact': 'LiveEver - Contact',
+      '/privacy': 'LiveEver - Privacy',
+      '/terms': 'LiveEver - Terms'
     };
     document.title = titleMap[pathname] || PRODUCT_NAME;
   }, [pathname]);

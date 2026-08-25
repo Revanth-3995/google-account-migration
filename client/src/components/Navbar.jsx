@@ -45,7 +45,7 @@ export function Navbar({ activeTab, setActiveTab }) {
             CO
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#f3f4f6' }}>Brand Name</div>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#f3f4f6' }}>LiveEver</div>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Migration workspace</div>
           </div>
         </div>

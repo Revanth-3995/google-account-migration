@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link as LinkIcon, Loader2 } from 'lucide-react';
 
-export const PRODUCT_NAME = import.meta.env.VITE_PRODUCT_NAME || 'Brand Name';
+export const PRODUCT_NAME = import.meta.env.VITE_PRODUCT_NAME || 'LiveEver';
 export const CONTACT_EMAIL = import.meta.env.VITE_CONTACT_EMAIL || 'contact@example.com';
 
 export function BrandMark({ variant = 'dark', className = '' }) {

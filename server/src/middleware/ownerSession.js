@@ -32,7 +32,12 @@ export function ensureOwnerSession(req, res, next) {
 
   if (!ownerSessionId) {
     ownerSessionId = crypto.randomUUID();
-    res.setHeader('Set-Cookie', buildCookie(ownerSessionId, { secure: process.env.NODE_ENV === 'production' }));
+    const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
+    const host = String(req.headers.host || '').toLowerCase();
+    const isLocalHost = host.startsWith('localhost') || host.startsWith('127.0.0.1') || host.startsWith('[::1]');
+    const isHttps = req.secure || forwardedProto === 'https';
+    const secure = process.env.NODE_ENV === 'production' && isHttps && !isLocalHost;
+    res.setHeader('Set-Cookie', buildCookie(ownerSessionId, { secure }));
   }
 
   req.ownerSessionId = ownerSessionId;
