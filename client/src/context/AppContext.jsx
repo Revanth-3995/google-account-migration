@@ -5,7 +5,7 @@ import { computeMigrationAuthState, getAccountLifetimeInfo } from '../utils/acco
 const AppContext = createContext();
 
 export function AppProvider({ children }) {
-  const [config, setConfig] = useState({ clientId: '', projectId: '', apiKey: '' });
+  const [config, setConfig] = useState({ clientId: '' });
   const [accounts, setAccounts] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [activeJobId, setActiveJobId] = useState(null);

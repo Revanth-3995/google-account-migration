@@ -91,9 +91,9 @@ export function DriveStudio({ setActiveTab }) {
         .setSelectFolderEnabled(true)
         .setMimeTypes('application/vnd.google-apps.folder');
 
-    const apiKey = config.apiKey || viteApiKey || '';
+    const apiKey = viteApiKey || '';
     if (!apiKey) {
-      alert('Google API key is missing. Set GOOGLE_API_KEY on the server or VITE_GOOGLE_API_KEY for the client, then restart the app.');
+      alert('Google API key is missing. Set VITE_GOOGLE_API_KEY for the client build, then restart the app.');
       return;
     }
 
@@ -139,9 +139,9 @@ export function DriveStudio({ setActiveTab }) {
         .setIncludeFolders(true)
         .setSelectFolderEnabled(false);
 
-    const apiKey = config.apiKey || viteApiKey || '';
+    const apiKey = viteApiKey || '';
     if (!apiKey) {
-      alert('Google API key is missing. Set GOOGLE_API_KEY on the server or VITE_GOOGLE_API_KEY for the client, then restart the app.');
+      alert('Google API key is missing. Set VITE_GOOGLE_API_KEY for the client build, then restart the app.');
       return;
     }
 

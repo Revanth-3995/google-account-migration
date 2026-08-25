@@ -249,9 +249,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, summary:focus-visibl
 .page-header__grid {
   display: grid; grid-template-columns: 1.6fr auto; gap: 16px; align-items: end;
 }
+.page-header__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.page-header__rule {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--line), transparent);
+}
 .page-header h1, .landing h1, .not-found h1 {
   font-family: var(--font-display); font-size: clamp(2.4rem, 5vw, 4.8rem);
-  font-weight: 400; line-height: 1.04; letter-spacing: -0.02em;
+  font-weight: 400; line-height: 1.08; letter-spacing: -0.02em;
 }
 .page-header p, .landing p, .not-found p { color: var(--ink-soft); max-width: 72ch; }
 .page-header__aside { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
@@ -424,6 +434,70 @@ button:focus-visible, a:focus-visible, input:focus-visible, summary:focus-visibl
 .hero-bridge {
   display: flex;
   justify-content: center;
+}
+.control-center-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.control-center-card__eyebrow {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-size: .7rem;
+  color: var(--muted);
+}
+.control-center-card h3 {
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.6vw, 1.9rem);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.control-center-steps {
+  display: grid;
+  gap: 14px;
+}
+.control-center-step {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.control-center-step__icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.34);
+  display: grid;
+  place-items: center;
+  color: var(--green);
+  flex: none;
+}
+.control-center-step strong {
+  display: block;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.control-center-step p {
+  color: var(--ink-soft);
+  font-size: .95rem;
+}
+.control-center-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--line-strong);
+  padding: 2px 0;
+}
+.control-center-connector::before,
+.control-center-connector::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
 }
 .preview-stack { display: grid; gap: 12px; }
 .preview-card {

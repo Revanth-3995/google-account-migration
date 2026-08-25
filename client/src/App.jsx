@@ -9,7 +9,7 @@ import { History } from './pages/History';
 import { Settings } from './pages/Settings';
 import { BrandLogo, PageHeader, SectionHeader, StatusBadge, EmptyState, ProgressBar, PRODUCT_NAME, CONTACT_EMAIL } from './components/ui';
 import { Badge } from './components/Badge';
-import { HardDrive, Image as ImageIcon, ShieldCheck, History as HistoryIcon, Settings as SettingsIcon, HelpCircle, Info, Menu, X, ArrowRight, LayoutDashboard, Users, Sparkles } from 'lucide-react';
+import { HardDrive, Image as ImageIcon, ShieldCheck, History as HistoryIcon, Settings as SettingsIcon, HelpCircle, Info, Menu, X, ArrowRight, LayoutDashboard, Users, Sparkles, Link2, ArrowRightCircle } from 'lucide-react';
 
 const ROUTES = [
   { path: '/app', label: 'Dashboard', icon: LayoutDashboard },
@@ -165,27 +165,47 @@ function LandingPage({ navigate }) {
             <button className="btn btn-secondary btn-lg" onClick={() => navigate('/help')}>See how it works</button>
           </div>
           <div className="trust-strip">
-            <div className="trust-chip"><span>Source</span><strong>Account A</strong></div>
-            <div className="trust-chip"><span>Destination</span><strong>Account B</strong></div>
-            <div className="trust-chip"><span>Visibility</span><strong>Progress and history</strong></div>
-            <div className="trust-chip"><span>Approach</span><strong>Private by design</strong></div>
+            <div className="trust-chip"><span>Your data</span><strong>Private by design</strong></div>
+            <div className="trust-chip"><span>Control</span><strong>You're in charge</strong></div>
+            <div className="trust-chip"><span>Continuity</span><strong>Nothing left behind</strong></div>
+            <div className="trust-chip"><span>Security</span><strong>Secure by design</strong></div>
           </div>
         </div>
 
         <div className="hero-visual card-surface">
-          <div className="preview-stack">
-            <div className="preview-card preview-card--large">
-              <div className="preview-card__eyebrow">LiveEver control center</div>
-              <div className="preview-card__title">Account A → Account B</div>
-              <ProgressBar value={68} label="Current migration" detail="2,148 / 3,140 items" />
-              <div className="preview-meta">
-                <StatusBadge tone="green" mono>Drive synced</StatusBadge>
-                <StatusBadge tone="amber" mono>Photos queued</StatusBadge>
+          <div className="control-center-card">
+            <div className="control-center-card__eyebrow">LIVE EVER CONTROL CENTER</div>
+            <h3>Get started in 3 simple steps</h3>
+            <div className="control-center-steps">
+              <div className="control-center-step">
+                <div className="control-center-step__icon"><Users size={18} /></div>
+                <div>
+                  <strong>Connect your accounts</strong>
+                  <p>Securely connect the Google account you're moving from and the account you're moving to.</p>
+                </div>
               </div>
-            </div>
-            <div className="preview-card preview-card--small">
-              <div className="preview-card__title">Recent activity</div>
-              <p>Files discovered, selected, migrated, and verified.</p>
+              <div className="control-center-connector" aria-hidden="true">
+                <Link2 size={16} />
+                <ArrowRightCircle size={16} />
+              </div>
+              <div className="control-center-step">
+                <div className="control-center-step__icon"><HardDrive size={18} /></div>
+                <div>
+                  <strong>Choose what matters</strong>
+                  <p>Select the Drive files, folders, and Photos you want to move.</p>
+                </div>
+              </div>
+              <div className="control-center-connector" aria-hidden="true">
+                <Link2 size={16} />
+                <ArrowRightCircle size={16} />
+              </div>
+              <div className="control-center-step">
+                <div className="control-center-step__icon"><ArrowRight size={18} /></div>
+                <div>
+                  <strong>Migrate with confidence</strong>
+                  <p>LiveEver transfers your selected content and verifies the migration so your memories stay intact.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

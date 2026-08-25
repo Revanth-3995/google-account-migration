@@ -16,9 +16,7 @@ apiRouter.get('/health', (req, res) => {
 // Config
 apiRouter.get('/config', (req, res) => {
   res.json({
-    clientId: config.google.clientId,
-    projectId: config.google.projectId,
-    apiKey: config.google.apiKey
+    clientId: config.google.clientId
   });
 });
 

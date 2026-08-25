@@ -37,6 +37,15 @@ export function ensureOwnerSession(req, res, next) {
     const isLocalHost = host.startsWith('localhost') || host.startsWith('127.0.0.1') || host.startsWith('[::1]');
     const isHttps = req.secure || forwardedProto === 'https';
     const secure = process.env.NODE_ENV === 'production' && isHttps && !isLocalHost;
+    if (process.env.DEBUG_OWNER_SESSION === '1') {
+      console.log('[ownerSession] cookie debug', {
+        nodeEnv: process.env.NODE_ENV,
+        host,
+        forwardedProto,
+        secure,
+        reqSecure: req.secure
+      });
+    }
     res.setHeader('Set-Cookie', buildCookie(ownerSessionId, { secure }));
   }
 

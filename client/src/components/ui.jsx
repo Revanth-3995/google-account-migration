@@ -33,8 +33,9 @@ export function PageHeader({ eyebrow, title, description, actions, meta }) {
     <header className="page-header">
       {eyebrow ? <div className="eyebrow">{eyebrow}</div> : null}
       <div className="page-header__grid">
-        <div>
+        <div className="page-header__copy">
           <h1>{title}</h1>
+          <span className="page-header__rule" aria-hidden="true" />
           {description ? <p>{description}</p> : null}
         </div>
         {(actions || meta) && (
