@@ -6,7 +6,17 @@ import { HardDrive, FolderPlus, FileCheck, ArrowRight, ShieldCheck, CheckCircle2
 
 export function DriveStudio({ setActiveTab }) {
   const { config, sourceAccount, destAccount, promptLogin, setActiveJobId, isAuthenticating } = useApp();
-  const viteApiKey = import.meta.env.VITE_GOOGLE_API_KEY || '';
+  const viteApiKey = import.meta.env.VITE_GOOGLE_API_KEY;
+
+  const getPickerCredentials = () => {
+    const apiKey = (viteApiKey || config.apiKey || '').trim();
+    const appId = (config.projectId || (config.clientId ? config.clientId.split('-')[0] : '') || '').trim();
+    if (!apiKey) {
+      alert('Google API key is missing. Set GOOGLE_API_KEY (or VITE_GOOGLE_API_KEY) in the project .env file, then restart the app.');
+      return null;
+    }
+    return { apiKey, appId };
+  };
   const [migrationMode, setMigrationMode] = useState('HIERARCHY');
   const [rootFolder, setRootFolder] = useState(null);
   const [discoveredManifest, setDiscoveredManifest] = useState(null);
@@ -91,16 +101,14 @@ export function DriveStudio({ setActiveTab }) {
         .setSelectFolderEnabled(true)
         .setMimeTypes('application/vnd.google-apps.folder');
 
-    const apiKey = viteApiKey || '';
-    if (!apiKey) {
-      alert('Google API key is missing. Set VITE_GOOGLE_API_KEY for the client build, then restart the app.');
-      return;
-    }
+      const pickerCreds = getPickerCredentials();
+      if (!pickerCreds) return;
 
       const builder = new google.picker.PickerBuilder()
         .addView(view)
         .setOAuthToken(token)
-        .setDeveloperKey(apiKey)
+        .setDeveloperKey(pickerCreds.apiKey)
+        .setAppId(pickerCreds.appId)
         .setOrigin(window.location.protocol + '//' + window.location.host)
         .setCallback(async (data) => {
           const action = data[google.picker.Response.ACTION] || data.action;
@@ -139,17 +147,15 @@ export function DriveStudio({ setActiveTab }) {
         .setIncludeFolders(true)
         .setSelectFolderEnabled(false);
 
-    const apiKey = viteApiKey || '';
-    if (!apiKey) {
-      alert('Google API key is missing. Set VITE_GOOGLE_API_KEY for the client build, then restart the app.');
-      return;
-    }
+      const pickerCreds = getPickerCredentials();
+      if (!pickerCreds) return;
 
       const builder = new google.picker.PickerBuilder()
         .addView(view)
         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
         .setOAuthToken(token)
-        .setDeveloperKey(apiKey)
+        .setDeveloperKey(pickerCreds.apiKey)
+        .setAppId(pickerCreds.appId)
         .setOrigin(window.location.protocol + '//' + window.location.host)
         .setCallback((data) => {
           const action = data[google.picker.Response.ACTION] || data.action;

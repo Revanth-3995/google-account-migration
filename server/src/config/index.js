@@ -12,13 +12,25 @@ const SERVER_DIR = path.resolve(__dirname, '../..');
 dotenv.config({ path: path.join(ROOT_DIR, '.env') });
 dotenv.config({ path: path.join(SERVER_DIR, '.env') });
 
+function loadPickerApiKey(envApiKey) {
+  let apiKey = envApiKey || '';
+  try {
+    const pkPath = process.env.GOOGLE_PICKER_CONFIG_PATH || path.join(ROOT_DIR, 'poc/poc1_drive_share_copy/picker-config.json');
+    if (fs.existsSync(pkPath)) {
+      apiKey = JSON.parse(fs.readFileSync(pkPath, 'utf8')).apiKey || apiKey;
+    }
+  } catch (e) {}
+  return apiKey;
+}
+
 function loadCredentials() {
   const envClientId = process.env.GOOGLE_CLIENT_ID || '';
   const envProjectId = process.env.GOOGLE_PROJECT_ID || 'drive-storage-manager-505102';
   const envAuthUri = process.env.GOOGLE_AUTH_URI || 'https://accounts.google.com/o/oauth2/auth';
   const envTokenUri = process.env.GOOGLE_TOKEN_URI || 'https://oauth2.googleapis.com/token';
-  const envApiKey = process.env.GOOGLE_API_KEY || '';
+  const envApiKey = process.env.GOOGLE_API_KEY || process.env.VITE_GOOGLE_API_KEY || '';
   const envClientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
+  const apiKey = loadPickerApiKey(envApiKey);
 
   if (envClientId) {
     return {
@@ -26,7 +38,7 @@ function loadCredentials() {
       projectId: envProjectId,
       authUri: envAuthUri,
       tokenUri: envTokenUri,
-      apiKey: envApiKey,
+      apiKey,
       clientSecret: envClientSecret
     };
   }
@@ -37,14 +49,6 @@ function loadCredentials() {
     path.join(ROOT_DIR, 'poc/photos_poc1_picker_retrieval/credentials.json'),
     path.join(ROOT_DIR, 'poc/poc1_drive_share_copy/credentials.json')
   ];
-
-  let apiKey = envApiKey || '';
-  try {
-    const pkPath = process.env.GOOGLE_PICKER_CONFIG_PATH || path.join(ROOT_DIR, 'poc/poc1_drive_share_copy/picker-config.json');
-    if (fs.existsSync(pkPath)) {
-      apiKey = JSON.parse(fs.readFileSync(pkPath, 'utf8')).apiKey || apiKey;
-    }
-  } catch (e) {}
 
   for (const p of possiblePaths) {
     if (fs.existsSync(p)) {

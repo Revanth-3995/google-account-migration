@@ -5,7 +5,7 @@ import { computeMigrationAuthState, getAccountLifetimeInfo } from '../utils/acco
 const AppContext = createContext();
 
 export function AppProvider({ children }) {
-  const [config, setConfig] = useState({ clientId: '' });
+  const [config, setConfig] = useState({ clientId: '', apiKey: '', projectId: '' });
   const [accounts, setAccounts] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [activeJobId, setActiveJobId] = useState(null);
@@ -132,7 +132,7 @@ export function AppProvider({ children }) {
 
     setIsAuthenticating(true);
     const scope = role === 'source'
-      ? 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/photospicker.mediaitems.readonly'
+      ? 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/photospicker.mediaitems.readonly'
       : 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/photoslibrary.appendonly';
 
     return new Promise((resolve) => {
@@ -158,7 +158,7 @@ export function AppProvider({ children }) {
                 email = d.user.emailAddress;
               }
             }
-          } catch (e) {}
+          } catch (e) { }
 
           if (!email) {
             try {
@@ -169,7 +169,7 @@ export function AppProvider({ children }) {
                 const u = await userinfoRes.json();
                 if (u.email) email = u.email;
               }
-            } catch (e) {}
+            } catch (e) { }
           }
 
           if (!email) {
